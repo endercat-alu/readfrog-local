@@ -88,7 +88,9 @@ export default defineConfig({
 
               // Check required env vars only for zip builds
               if (process.env.WXT_ZIP_MODE) {
-                const requiredEnvVars = ["WXT_GOOGLE_CLIENT_ID"]
+                const requiredEnvVars = configEnv.browser === "firefox"
+                  ? []
+                  : ["WXT_GOOGLE_CLIENT_ID"]
                 const missing = requiredEnvVars.filter(key => !process.env[key])
 
                 if (missing.length > 0) {
