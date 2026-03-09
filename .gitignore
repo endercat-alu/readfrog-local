@@ -43,3 +43,9 @@ docs/
 /repos
 
 scripts/output/
+
+.codex
+.claude
+AGENTS.md
+CLAUDE.md
+.cache
