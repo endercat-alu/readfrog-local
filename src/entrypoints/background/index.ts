@@ -13,7 +13,6 @@ import { setupEdgeTTSMessageHandlers } from "./edge-tts"
 import { setupIframeInjection } from "./iframe-injection"
 import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
 import { initMockData } from "./mock-data"
-import { newUserGuide } from "./new-user-guide"
 import { proxyFetch } from "./proxy-fetch"
 import { setUpSubtitlesTranslationQueue, setUpWebPageTranslationQueue } from "./translation-queues"
 import { translationMessage } from "./translation-signal"
@@ -34,10 +33,8 @@ export default defineBackground({
         })
       }
 
-      // Clear blog cache on extension update to fetch latest blog posts
       if (details.reason === "update") {
-        logger.info("[Background] Extension updated, clearing blog cache")
-        await SessionCacheGroupRegistry.removeCacheGroup("blog-fetch")
+        await SessionCacheGroupRegistry.clearAllCacheGroup()
       }
     })
 
@@ -75,7 +72,6 @@ export default defineBackground({
       await cleanupAllAiSegmentationCache()
     })
 
-    newUserGuide()
     translationMessage()
 
     // Register context menu listeners synchronously

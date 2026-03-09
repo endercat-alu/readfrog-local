@@ -8,7 +8,6 @@ import * as React from "react"
 import ReactDOM from "react-dom/client"
 import { HashRouter } from "react-router"
 import FrogToast from "@/components/frog-toast"
-import { HelpButton } from "@/components/help-button"
 import { ChartThemeProvider } from "@/components/providers/chart-theme-provider"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { RecoveryBoundary } from "@/components/recovery/recovery-boundary"
@@ -64,7 +63,6 @@ async function initApp() {
                       <RecoveryBoundary>
                         <AppSidebar />
                         <App />
-                        <HelpButton />
                         <SettingsSearch />
                       </RecoveryBoundary>
                     </TooltipProvider>
