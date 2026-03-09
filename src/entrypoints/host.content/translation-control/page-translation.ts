@@ -32,6 +32,11 @@ interface IPageTranslationManager {
   stop: () => void
 
   /**
+   * Refreshes page translation after SPA navigation without disabling the feature.
+   */
+  refreshForNavigation: () => void
+
+  /**
    * Registers page translation triggers
    */
   registerPageTranslationTriggers: () => () => void
@@ -40,6 +45,7 @@ interface IPageTranslationManager {
 export class PageTranslationManager implements IPageTranslationManager {
   private static readonly MAX_DURATION = 500
   private static readonly MOVE_THRESHOLD = 30 * 30
+  private static readonly NAVIGATION_SETTLE_DELAY = 350
   private static readonly DEFAULT_INTERSECTION_OPTIONS: SimpleIntersectionOptions = {
     root: null,
     rootMargin: "600px",
@@ -52,6 +58,9 @@ export class PageTranslationManager implements IPageTranslationManager {
   private walkId: string | null = null
   private intersectionOptions: IntersectionObserverInit
   private dontWalkIntoElementsCache = new WeakSet<HTMLElement>()
+  private navigationTimer: number | null = null
+  private sessionVersion = 0
+  private cleanupController: AbortController | null = null
 
   constructor(intersectionOptions: SimpleIntersectionOptions = {}) {
     if (intersectionOptions.threshold !== undefined) {
@@ -97,34 +106,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     })
 
     this.isPageTranslating = true
-
-    // Listen to existing elements when they enter the viewpoint
-    const walkId = crypto.randomUUID()
-    this.walkId = walkId
-    this.intersectionObserver = new IntersectionObserver(async (entries, observer) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          if (isHTMLElement(entry.target)) {
-            if (!entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
-              const currentConfig = await getLocalConfig()
-              if (!currentConfig) {
-                logger.error("Global config is not initialized")
-                return
-              }
-              void translateWalkedElement(entry.target, walkId, currentConfig)
-            }
-          }
-          observer.unobserve(entry.target)
-        }
-      }
-    }, this.intersectionOptions)
-
-    // Initialize walkability state for existing elements
-    this.addDontWalkIntoElements(document.body)
-    await this.observerTopLevelParagraphs(document.body)
-
-    // Start observing mutations from document.body and all shadow roots
-    this.observeMutations(document.body)
+    await this.startObservationSession()
   }
 
   stop(): void {
@@ -138,17 +120,31 @@ export class PageTranslationManager implements IPageTranslationManager {
     })
 
     this.isPageTranslating = false
-    this.walkId = null
-    this.dontWalkIntoElementsCache = new WeakSet()
+    const walkId = this.walkId
+    this.cancelPendingNavigationRefresh()
+    this.abortCleanup()
+    this.resetObservationSession()
+    this.scheduleCleanup(walkId)
+  }
 
-    if (this.intersectionObserver) {
-      this.intersectionObserver.disconnect()
-      this.intersectionObserver = null
-    }
-    this.mutationObservers.forEach(observer => observer.disconnect())
-    this.mutationObservers = []
+  refreshForNavigation(): void {
+    if (!this.isPageTranslating)
+      return
 
-    void removeAllTranslatedWrapperNodes()
+    const walkId = this.walkId
+    const currentVersion = ++this.sessionVersion
+
+    this.cancelPendingNavigationRefresh()
+    this.abortCleanup()
+    this.resetObservationSession()
+    this.scheduleCleanup(walkId)
+
+    this.navigationTimer = window.setTimeout(() => {
+      if (!this.isPageTranslating || currentVersion !== this.sessionVersion)
+        return
+
+      void this.startObservationSession(currentVersion)
+    }, PageTranslationManager.NAVIGATION_SETTLE_DELAY)
   }
 
   registerPageTranslationTriggers(): () => void {
@@ -362,5 +358,88 @@ export class PageTranslationManager implements IPageTranslationManager {
         this.observeIsolatedDescendantsMutations(child)
       }
     }
+  }
+
+  private async startObservationSession(version: number = ++this.sessionVersion): Promise<void> {
+    this.cancelPendingNavigationRefresh()
+    this.resetObservationSession()
+
+    const walkId = crypto.randomUUID()
+    this.walkId = walkId
+    this.intersectionObserver = new IntersectionObserver(async (entries, observer) => {
+      for (const entry of entries) {
+        if (!this.isPageTranslating || version !== this.sessionVersion) {
+          observer.disconnect()
+          return
+        }
+
+        if (entry.isIntersecting) {
+          if (isHTMLElement(entry.target)) {
+            if (!entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
+              const currentConfig = await getLocalConfig()
+              if (!currentConfig) {
+                logger.error("Global config is not initialized")
+                return
+              }
+
+              if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId)
+                return
+
+              void translateWalkedElement(entry.target, walkId, currentConfig)
+            }
+          }
+          observer.unobserve(entry.target)
+        }
+      }
+    }, this.intersectionOptions)
+
+    this.addDontWalkIntoElements(document.body)
+    await this.observerTopLevelParagraphs(document.body)
+
+    if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId) {
+      this.resetObservationSession()
+      return
+    }
+
+    this.observeMutations(document.body)
+  }
+
+  private scheduleCleanup(walkId: string | null): void {
+    const controller = new AbortController()
+    this.cleanupController = controller
+    void removeAllTranslatedWrapperNodes(document, {
+      walkId: walkId ?? undefined,
+      signal: controller.signal,
+    }).finally(() => {
+      if (controller.signal.aborted || this.cleanupController !== controller)
+        return
+
+      this.cleanupController = null
+    })
+  }
+
+  private abortCleanup(): void {
+    this.cleanupController?.abort()
+    this.cleanupController = null
+  }
+
+  private cancelPendingNavigationRefresh(): void {
+    if (this.navigationTimer !== null) {
+      window.clearTimeout(this.navigationTimer)
+      this.navigationTimer = null
+    }
+  }
+
+  private resetObservationSession(): void {
+    this.walkId = null
+    this.dontWalkIntoElementsCache = new WeakSet()
+
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect()
+      this.intersectionObserver = null
+    }
+
+    this.mutationObservers.forEach(observer => observer.disconnect())
+    this.mutationObservers = []
   }
 }

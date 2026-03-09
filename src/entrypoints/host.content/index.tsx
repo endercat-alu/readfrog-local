@@ -21,6 +21,7 @@ import { insertShadowRootUIWrapperInto } from "@/utils/shadow-root"
 import { isSiteEnabled } from "@/utils/site-control"
 import { addStyleToShadow, injectBaseStylesToShadow } from "@/utils/styles"
 import { getLocalThemeMode } from "@/utils/theme"
+import { matchDomainPattern } from "@/utils/url"
 import App from "./app"
 import { bindTranslationShortcutKey } from "./translation-control/bind-translation-shortcut"
 import { handleTranslationModeChange } from "./translation-control/handle-config-change"
@@ -126,20 +127,53 @@ export default defineContentScript({
       void manager.start()
     }
 
+    let latestConfig: Config = initialConfig ?? DEFAULT_CONFIG
+    let pendingUrlChangeTimer: number | null = null
+    let urlChangeVersion = 0
+
+    const shouldProcessAutoTranslationForUrl = (url: string) => {
+      const autoTranslatePatterns = latestConfig.translate.page.autoTranslatePatterns
+      const autoTranslateLanguages = latestConfig.translate.page.autoTranslateLanguages
+
+      if (autoTranslateLanguages.length > 0)
+        return true
+
+      return autoTranslatePatterns.some(pattern => matchDomainPattern(url, pattern))
+    }
+
+    const scheduleUrlChangeWork = (to: string) => {
+      if (!manager.isActive && !shouldProcessAutoTranslationForUrl(to))
+        return
+
+      urlChangeVersion += 1
+      const currentVersion = urlChangeVersion
+
+      if (pendingUrlChangeTimer !== null) {
+        window.clearTimeout(pendingUrlChangeTimer)
+      }
+
+      pendingUrlChangeTimer = window.setTimeout(async () => {
+        if (currentVersion !== urlChangeVersion || window !== window.top)
+          return
+
+        const { detectedCodeOrUnd } = await getDocumentInfo()
+        const detectedCode: LangCodeISO6393 = detectedCodeOrUnd === "und" ? "eng" : detectedCodeOrUnd
+        await storage.setItem<LangCodeISO6393>(`local:${DETECTED_CODE_STORAGE_KEY}`, detectedCode)
+
+        if (!manager.isActive) {
+          void sendMessage("checkAndAskAutoPageTranslation", { url: to, detectedCodeOrUnd })
+        }
+      }, 350)
+    }
+
     const handleUrlChange = async (from: string, to: string) => {
       if (from !== to) {
         logger.info("URL changed from", from, "to", to)
         if (manager.isActive) {
-          manager.stop()
+          manager.refreshForNavigation()
         }
-        // Only the top frame should detect and set language to avoid race conditions from iframes
-        if (window === window.top) {
-          const { detectedCodeOrUnd } = await getDocumentInfo()
-          const detectedCode: LangCodeISO6393 = detectedCodeOrUnd === "und" ? "eng" : detectedCodeOrUnd
-          await storage.setItem<LangCodeISO6393>(`local:${DETECTED_CODE_STORAGE_KEY}`, detectedCode)
-          // Notify background script that URL has changed, let it decide whether to automatically enable translation
-          void sendMessage("checkAndAskAutoPageTranslation", { url: to, detectedCodeOrUnd })
-        }
+
+        scheduleUrlChangeWork(to)
       }
     }
 
@@ -152,6 +186,9 @@ export default defineContentScript({
 
     // This may not work when the tab is not active, if so, need refresh the webpage
     storage.watch<Config>(`local:${CONFIG_STORAGE_KEY}`, (newConfig, oldConfig) => {
+      if (newConfig) {
+        latestConfig = newConfig
+      }
       void bindTranslationShortcutKey(manager)
 
       // Auto re-translate when translation mode changes while page translation is active
@@ -168,6 +205,9 @@ export default defineContentScript({
 
     // Only the top frame should detect and set language to avoid race conditions from iframes
     if (window === window.top) {
+      if (!shouldProcessAutoTranslationForUrl(window.location.href))
+        return
+
       const { detectedCodeOrUnd } = await getDocumentInfo()
       const initialDetectedCode: LangCodeISO6393 = detectedCodeOrUnd === "und" ? "eng" : detectedCodeOrUnd
       await storage.setItem<LangCodeISO6393>(`local:${DETECTED_CODE_STORAGE_KEY}`, initialDetectedCode)
