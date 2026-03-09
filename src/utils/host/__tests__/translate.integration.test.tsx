@@ -77,11 +77,15 @@ describe("translate", () => {
 
   // Helper functions
   async function removeOrShowPageTranslation(translationMode: TranslationMode, toggle: boolean = false) {
+    await translateWithConfig(translationMode === "bilingual" ? BILINGUAL_CONFIG : TRANSLATION_ONLY_CONFIG, toggle)
+  }
+
+  async function translateWithConfig(config: Config, toggle: boolean = false) {
     const id = crypto.randomUUID()
 
-    walkAndLabelElement(document.body, id, translationMode === "bilingual" ? BILINGUAL_CONFIG : TRANSLATION_ONLY_CONFIG)
+    walkAndLabelElement(document.body, id, config)
     await act(async () => {
-      await translateWalkedElement(document.body, id, translationMode === "bilingual" ? BILINGUAL_CONFIG : TRANSLATION_ONLY_CONFIG, toggle)
+      await translateWalkedElement(document.body, id, config, toggle)
       // Flush batched DOM operations to ensure all changes are applied before assertions
       flushBatchedOperations()
     })
@@ -1728,6 +1732,66 @@ describe("translate", () => {
         expect(translateTextForPage).toHaveBeenCalledTimes(2)
         expect(translateTextForPage).toHaveBeenNthCalledWith(1, MOCK_ORIGINAL_TEXT)
         expect(translateTextForPage).toHaveBeenNthCalledWith(2, MOCK_ORIGINAL_TEXT)
+      })
+    })
+
+    describe("paragraph segmentation", () => {
+      it("bilingual mode: should insert translation below each blank-line paragraph", async () => {
+        vi.mocked(translateTextForPage).mockClear()
+        render(
+          <div data-testid="test-node">
+            <span>{`${MOCK_ORIGINAL_TEXT}\n\n${MOCK_ORIGINAL_TEXT}\n\n${MOCK_ORIGINAL_TEXT}`}</span>
+          </div>,
+        )
+        const node = screen.getByTestId("test-node")
+
+        await removeOrShowPageTranslation("bilingual", true)
+
+        expect(translateTextForPage).toHaveBeenCalledTimes(3)
+        expect(Array.from(node.querySelectorAll(`.${CONTENT_WRAPPER_CLASS}`))).toHaveLength(3)
+        expect(Array.from(node.querySelectorAll(`.${BLOCK_CONTENT_CLASS}`))).toHaveLength(3)
+      })
+
+      it("bilingual mode: should split long inline text by rendered lines when enabled", async () => {
+        vi.mocked(translateTextForPage).mockClear()
+        const originalGetClientRects = Range.prototype.getClientRects
+        Range.prototype.getClientRects = vi.fn(function (this: Range) {
+          const text = this.toString()
+          const lineCount = Math.max(1, Math.ceil(text.length / 12))
+          return Array.from({ length: lineCount }, (_, index) => ({ top: index * 10 })) as DOMRect[]
+        }) as unknown as typeof Range.prototype.getClientRects
+
+        const visualLineConfig: Config = {
+          ...BILINGUAL_CONFIG,
+          translate: {
+            ...BILINGUAL_CONFIG.translate,
+            page: {
+              ...BILINGUAL_CONFIG.translate.page,
+              paragraphSegmentation: {
+                enabledRules: ["visualLines"],
+                maxLinesPerParagraph: 2,
+              },
+            },
+          },
+        }
+
+        render(
+          <div data-testid="test-node">
+            <span>one two three four five six seven eight nine ten eleven twelve</span>
+          </div>,
+        )
+        const node = screen.getByTestId("test-node")
+
+        try {
+          await translateWithConfig(visualLineConfig, true)
+        }
+        finally {
+          Range.prototype.getClientRects = originalGetClientRects
+        }
+
+        expect(translateTextForPage).toHaveBeenCalledTimes(3)
+        expect(Array.from(node.querySelectorAll(`.${CONTENT_WRAPPER_CLASS}`))).toHaveLength(3)
+        expect(Array.from(node.querySelectorAll(`.${BLOCK_CONTENT_CLASS}`))).toHaveLength(3)
       })
     })
   })

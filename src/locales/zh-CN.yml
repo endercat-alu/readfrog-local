@@ -596,6 +596,16 @@ options:
         title: 最小词数
         description: 少于此词数的文本节点将不会被翻译。使用 Intl.Segmenter 进行跨语言准确分词。
       error: 数值必须在 $1 到 $2 之间
+    paragraphSegmentation:
+      title: 段落切分
+      description: 将较长的行内文本拆成多个翻译块，让每段原文下方显示对应译文
+      definitions:
+        title: 段落定义
+        blankLine: 当换行后还有一个额外空行时，视为新的段落
+        visualLines: 当段落在当前容器布局下超过下方行数限制时，自动切分
+      maxLinesPerParagraph:
+        title: 每段最大渲染行数
+      error: 数值必须在 $1 到 $2 之间
     nodeTranslationHotkey:
       title: 悬停或长按翻译快捷键
       description: 自定义悬停翻译的修饰键，或使用鼠标长按翻译段落

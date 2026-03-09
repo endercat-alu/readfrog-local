@@ -1,7 +1,7 @@
 import { langCodeISO6393Schema } from "@read-frog/definitions"
 import { z } from "zod"
 import { HOTKEYS } from "@/utils/constants/hotkeys"
-import { MAX_PRELOAD_MARGIN, MAX_PRELOAD_THRESHOLD, MIN_BATCH_CHARACTERS, MIN_BATCH_ITEMS, MIN_CHARACTERS_PER_NODE, MIN_PRELOAD_MARGIN, MIN_PRELOAD_THRESHOLD, MIN_TRANSLATE_CAPACITY, MIN_TRANSLATE_RATE, MIN_WORDS_PER_NODE } from "@/utils/constants/translate"
+import { DEFAULT_PARAGRAPH_LINES_PER_SEGMENT, MAX_PRELOAD_MARGIN, MAX_PRELOAD_THRESHOLD, MIN_BATCH_CHARACTERS, MIN_BATCH_ITEMS, MIN_CHARACTERS_PER_NODE, MIN_PARAGRAPH_LINES_PER_SEGMENT, MIN_PRELOAD_MARGIN, MIN_PRELOAD_THRESHOLD, MIN_TRANSLATE_CAPACITY, MIN_TRANSLATE_RATE, MIN_WORDS_PER_NODE } from "@/utils/constants/translate"
 import { TRANSLATION_NODE_STYLE } from "@/utils/constants/translation-node-style"
 
 export const requestQueueConfigSchema = z.object({
@@ -19,6 +19,16 @@ export const translationModeSchema = z.enum(TRANSLATION_MODES)
 
 export const pageTranslateRangeSchema = z.enum(["main", "all"])
 export type PageTranslateRange = z.infer<typeof pageTranslateRangeSchema>
+
+export const PARAGRAPH_SEGMENTATION_RULES = ["blankLine", "visualLines"] as const
+export const paragraphSegmentationRuleSchema = z.enum(PARAGRAPH_SEGMENTATION_RULES)
+export type ParagraphSegmentationRule = z.infer<typeof paragraphSegmentationRuleSchema>
+
+export const paragraphSegmentationConfigSchema = z.object({
+  enabledRules: z.array(paragraphSegmentationRuleSchema),
+  maxLinesPerParagraph: z.number().int().min(MIN_PARAGRAPH_LINES_PER_SEGMENT).default(DEFAULT_PARAGRAPH_LINES_PER_SEGMENT),
+})
+export type ParagraphSegmentationConfig = z.infer<typeof paragraphSegmentationConfigSchema>
 
 export const preloadConfigSchema = z.object({
   margin: z.number().min(MIN_PRELOAD_MARGIN).max(MAX_PRELOAD_MARGIN),
@@ -88,6 +98,7 @@ export const translateConfigSchema = z.object({
     minWordsPerNode: z.number().min(MIN_WORDS_PER_NODE),
     skipLanguages: z.array(langCodeISO6393Schema),
     enableSkipLanguagesLLMDetection: z.boolean(),
+    paragraphSegmentation: paragraphSegmentationConfigSchema,
   }),
   enableAIContentAware: z.boolean(),
   customPromptsConfig: customPromptsConfigSchema,

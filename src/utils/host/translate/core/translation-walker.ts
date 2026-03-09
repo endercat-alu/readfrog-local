@@ -6,6 +6,7 @@ import {
   WALKED_ATTRIBUTE,
 } from "../../../constants/dom-labels"
 import { isBlockTransNode, isHTMLElement, isTextNode, isTransNode } from "../../dom/filter"
+import { splitElementIntoParagraphGroups } from "../paragraph-segmentation"
 import { translateNodes } from "./translation-modes"
 
 export async function translateWalkedElement(
@@ -37,7 +38,15 @@ export async function translateWalkedElement(
     const isFlexParent = computedStyle.display.includes("flex")
 
     if (!hasBlockNodeChild) {
-      promises.push(translateNodes([element], walkId, toggle, config))
+      const paragraphGroups = await splitElementIntoParagraphGroups(element, config)
+      if (paragraphGroups) {
+        paragraphGroups.forEach((group) => {
+          promises.push(translateNodes(group, walkId, toggle, config, true))
+        })
+      }
+      else {
+        promises.push(translateNodes([element], walkId, toggle, config))
+      }
     }
     else {
       // prevent children change during iteration

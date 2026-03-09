@@ -2,6 +2,22 @@ import { CONTENT_WRAPPER_CLASS, WALKED_ATTRIBUTE } from "../../../constants/dom-
 import { isHTMLElement } from "../../dom/filter"
 
 export function findPreviousTranslatedWrapperInside(node: Element | Text, walkId: string): HTMLElement | null {
+  const getSiblingWrapper = (sibling: Node | null): HTMLElement | null => {
+    if (!sibling) {
+      return null
+    }
+
+    if (
+      isHTMLElement(sibling)
+      && sibling.classList.contains(CONTENT_WRAPPER_CLASS)
+      && sibling.getAttribute(WALKED_ATTRIBUTE) !== walkId
+    ) {
+      return sibling
+    }
+
+    return null
+  }
+
   if (isHTMLElement(node)) {
     // Check if the node itself is a translated wrapper
     if (node.classList.contains(CONTENT_WRAPPER_CLASS) && node.getAttribute(WALKED_ATTRIBUTE) !== walkId) {
@@ -9,6 +25,7 @@ export function findPreviousTranslatedWrapperInside(node: Element | Text, walkId
     }
     // Otherwise, look for a wrapper as a child that doesn't match the current walkId
     return node.querySelector(`.${CONTENT_WRAPPER_CLASS}:not([${WALKED_ATTRIBUTE}="${walkId}"])`)
+      ?? getSiblingWrapper(node.nextSibling)
   }
-  return null
+  return getSiblingWrapper(node.nextSibling)
 }
