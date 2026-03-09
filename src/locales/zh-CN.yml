@@ -1,7 +1,6 @@
 name: 陪读蛙
 extName: 陪读蛙 - 开源沉浸式翻译
 extDescription: 陪读蛙是一款开放源代码的浏览器插件，旨在帮助您从任何网站深入学习语言。
-uninstallSurveyUrl: https://tally.so/r/3E9XDL
 dataTypes:
   string: 文本
   number: 数字
@@ -1113,3 +1112,28 @@ languages:
   wls: 瓦利斯语
   rar: 拉罗汤加语
   hif: 斐济印地语
+onboarding:
+  title: 欢迎使用陪读蛙
+  description: 先完成下面这些初始化步骤，网页翻译才能稳定工作。
+  readyTitle: 初始化完成
+  readyDescription: 陪读蛙已经可以开始使用。打开设置页后即可继续配置服务商和翻译语言。
+  finishHint: 完成后可以直接关闭此页面。
+  status:
+    done: 已完成
+    pending: 未完成
+  steps:
+    pin:
+      title: 固定到工具栏
+      description: 将陪读蛙固定到浏览器工具栏，之后就能更快进入翻译功能。
+      hint: 在浏览器工具栏菜单中把这个扩展固定即可。
+    firefoxPermission:
+      title: 授予“访问所有网站数据”
+      description: Firefox 默认不会授予这个 host permission。陪读蛙需要它来正常注入网页翻译脚本。
+      granted: 权限已授予
+      request: 立即授权
+      requesting: 授权中...
+      denied: 权限仍未授予，网页翻译暂时无法正常工作。
+    options:
+      title: 打开设置
+      description: 配置翻译服务、目标语言和其他阅读功能。
+      action: 打开设置

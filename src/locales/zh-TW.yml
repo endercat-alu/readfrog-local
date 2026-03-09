@@ -1,7 +1,6 @@
 name: 陪讀蛙
 extName: 陪讀蛙 - 開源沉浸式翻譯
 extDescription: 陪讀蛙是一款開放源代碼的瀏覽器插件，旨在幫助您從任何網站深入學習語言。
-uninstallSurveyUrl: https://tally.so/r/3E9XDL
 dataTypes:
   string: 文字
   number: 數字
@@ -991,3 +990,28 @@ languages:
   wls: 瓦利斯語
   rar: 拉羅湯加語
   hif: 斐濟印地語
+onboarding:
+  title: 歡迎使用陪讀蛙
+  description: 先完成下面這些初始化步驟，網頁翻譯才能穩定運作。
+  readyTitle: 初始化完成
+  readyDescription: 陪讀蛙已經可以開始使用。打開設定頁後即可繼續配置服務商和翻譯語言。
+  finishHint: 完成後可以直接關閉此頁面。
+  status:
+    done: 已完成
+    pending: 未完成
+  steps:
+    pin:
+      title: 固定到工具列
+      description: 將陪讀蛙固定到瀏覽器工具列，之後就能更快進入翻譯功能。
+      hint: 在瀏覽器工具列選單中把這個擴充功能固定即可。
+    firefoxPermission:
+      title: 授予「存取所有網站資料」
+      description: Firefox 預設不會授予這個 host permission。陪讀蛙需要它來正常注入網頁翻譯腳本。
+      granted: 權限已授予
+      request: 立即授權
+      requesting: 授權中...
+      denied: 權限仍未授予，網頁翻譯暫時無法正常運作。
+    options:
+      title: 打開設定
+      description: 配置翻譯服務、目標語言和其他閱讀功能。
+      action: 打開設定

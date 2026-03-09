@@ -1,6 +1,5 @@
 import "@/utils/zod-config"
 import { browser, defineBackground } from "#imports"
-import { WEBSITE_URL } from "@/utils/constants/url"
 import { logger } from "@/utils/logger"
 import { onMessage } from "@/utils/message"
 import { SessionCacheGroupRegistry } from "@/utils/session-cache/session-cache-group-registry"
@@ -19,7 +18,6 @@ import { proxyFetch } from "./proxy-fetch"
 import { setUpSubtitlesTranslationQueue, setUpWebPageTranslationQueue } from "./translation-queues"
 import { translationMessage } from "./translation-signal"
 import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
-import { setupUninstallSurvey } from "./uninstall-survey"
 
 export default defineBackground({
   type: "module",
@@ -32,7 +30,7 @@ export default defineBackground({
       // Open tutorial page when extension is installed
       if (details.reason === "install") {
         await browser.tabs.create({
-          url: `${WEBSITE_URL}/guide/step-1`,
+          url: browser.runtime.getURL("/onboarding.html"),
         })
       }
 
@@ -91,7 +89,6 @@ export default defineBackground({
     void setUpSubtitlesTranslationQueue()
     void setUpDatabaseCleanup()
     setUpConfigBackup()
-    void setupUninstallSurvey()
 
     proxyFetch()
     setupEdgeTTSMessageHandlers()

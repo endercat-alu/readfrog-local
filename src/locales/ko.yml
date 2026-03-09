@@ -1,7 +1,6 @@
 name: Read Frog
 extName: Read Frog - 오픈 소스 몰입형 번역
 extDescription: Read Frog는 모든 웹사이트에서 언어를 깊이 있게 학습할 수 있도록 도와주는 오픈 소스 브라우저 확장 프로그램입니다.
-uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 dataTypes:
   string: 텍스트
   number: 숫자
@@ -991,3 +990,28 @@ languages:
   wls: 월리스어
   rar: 라로통가어
   hif: 피지 힌디어
+onboarding:
+  title: Welcome to Read Frog
+  description: Finish the setup below once so page translation can work normally.
+  readyTitle: Setup complete
+  readyDescription: Read Frog is ready. Open settings to configure providers and translation languages.
+  finishHint: You can close this page after setup.
+  status:
+    done: Done
+    pending: Pending
+  steps:
+    pin:
+      title: Pin the extension
+      description: Pin Read Frog to the toolbar so translation controls are always within reach.
+      hint: Use the browser toolbar menu to pin this extension.
+    firefoxPermission:
+      title: Allow access to all websites
+      description: Firefox disables this host permission by default. Read Frog needs it to inject page translation scripts normally.
+      granted: Permission granted
+      request: Grant permission
+      requesting: Requesting...
+      denied: Permission is still missing. Page translation will not work until this is enabled.
+    options:
+      title: Open settings
+      description: Configure your translation provider, target language, and other reading tools.
+      action: Open settings

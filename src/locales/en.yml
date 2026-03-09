@@ -1,7 +1,6 @@
 name: Read Frog
 extName: Read Frog - Open Source Immersive Translate
 extDescription: Read Frog is an open source browser extension designed to help you learn languages deeply from any website.
-uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 dataTypes:
   string: Text
   number: Number
@@ -1113,3 +1112,28 @@ languages:
   wls: Wallisian
   rar: Rarotongan
   hif: Fiji Hindi
+onboarding:
+  title: Welcome to Read Frog
+  description: Finish the setup below once so page translation can work normally.
+  readyTitle: Setup complete
+  readyDescription: Read Frog is ready. Open settings to configure providers and translation languages.
+  finishHint: You can close this page after setup.
+  status:
+    done: Done
+    pending: Pending
+  steps:
+    pin:
+      title: Pin the extension
+      description: Pin Read Frog to the toolbar so translation controls are always within reach.
+      hint: Use the browser toolbar menu to pin this extension.
+    firefoxPermission:
+      title: Allow access to all websites
+      description: Firefox disables this host permission by default. Read Frog needs it to inject page translation scripts normally.
+      granted: Permission granted
+      request: Grant permission
+      requesting: Requesting...
+      denied: Permission is still missing. Page translation will not work until this is enabled.
+    options:
+      title: Open settings
+      description: Configure your translation provider, target language, and other reading tools.
+      action: Open settings

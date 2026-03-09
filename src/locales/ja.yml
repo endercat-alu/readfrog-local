@@ -1,7 +1,6 @@
 name: 読書カエル
 extName: 読書カエル - オープンソースインビジブル翻訳
 extDescription: 読書カエルは、あらゆるウェブサイトから言語を深く学ぶために設計されたオープンソースのブラウザ拡張機能です。
-uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 dataTypes:
   string: テキスト
   number: 数値
@@ -991,3 +990,28 @@ languages:
   wls: ウォリス語
   rar: ラロトンガ語
   hif: フィジー・ヒンディー語
+onboarding:
+  title: Read Frog へようこそ
+  description: まずは以下の初期設定を完了すると、ページ翻訳が正常に動作します。
+  readyTitle: セットアップ完了
+  readyDescription: Read Frog を使う準備ができました。設定ページでプロバイダーと言語を設定できます。
+  finishHint: 完了したらこのページは閉じて構いません。
+  status:
+    done: 完了
+    pending: 未完了
+  steps:
+    pin:
+      title: ツールバーに固定
+      description: Read Frog をブラウザのツールバーに固定すると、翻訳機能にすぐアクセスできます。
+      hint: ブラウザのツールバーメニューからこの拡張機能を固定してください。
+    firefoxPermission:
+      title: すべてのウェブサイトへのアクセスを許可
+      description: Firefox ではこの host permission が初期状態で無効です。Read Frog がページ翻訳スクリプトを注入するにはこの権限が必要です。
+      granted: 権限は付与済みです
+      request: 権限を付与
+      requesting: リクエスト中...
+      denied: 権限がまだありません。この設定を有効にするまでページ翻訳は動作しません。
+    options:
+      title: 設定を開く
+      description: 翻訳プロバイダー、対象言語、そのほかの読書機能を設定します。
+      action: 設定を開く
