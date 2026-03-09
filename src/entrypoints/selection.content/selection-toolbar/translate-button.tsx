@@ -3,7 +3,7 @@ import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { RiTranslate } from "@remixicon/react"
 import { IconCopy, IconLoader2, IconVolume } from "@tabler/icons-react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { isLLMProviderConfig } from "@/types/config/provider"
@@ -56,6 +56,15 @@ export function TranslatePopover() {
   const languageConfig = useAtomValue(configFieldsAtomMap.language)
   const selectionContent = useAtomValue(selectionContentAtom)
   const [isVisible, setIsVisible] = useAtom(isTranslatePopoverVisibleAtom)
+  const cleanSelectionContent = useMemo(
+    () => selectionContent?.replace(/\u200B/g, "").trim() ?? "",
+    [selectionContent],
+  )
+  const translateProviderSignature = useMemo(
+    () => translateProviderConfig ? JSON.stringify(translateProviderConfig) : "",
+    [translateProviderConfig],
+  )
+  const latestTranslateProviderConfigRef = useRef(translateProviderConfig)
 
   const handleClose = useCallback(() => {
     setTranslatedText(undefined)
@@ -69,12 +78,15 @@ export function TranslatePopover() {
   }, [translatedText])
 
   useEffect(() => {
+    latestTranslateProviderConfigRef.current = translateProviderConfig
+  }, [translateProviderConfig])
+
+  useEffect(() => {
     let cancelTranslation: (() => void) | undefined
     let isCancelled = false
 
     const translate = async () => {
-      const cleanText = selectionContent?.replace(/\u200B/g, "").trim()
-      if (!cleanText) {
+      if (!cleanSelectionContent) {
         return
       }
 
@@ -82,21 +94,22 @@ export function TranslatePopover() {
       cancelTranslation = undefined
 
       try {
-        if (!translateProviderConfig) {
+        const activeTranslateProviderConfig = latestTranslateProviderConfigRef.current
+        if (!activeTranslateProviderConfig) {
           throw new Error("No provider config when translate text")
         }
 
-        if (isLLMProviderConfig(translateProviderConfig)) {
+        if (isLLMProviderConfig(activeTranslateProviderConfig)) {
           const targetLangName = LANG_CODE_TO_EN_NAME[languageConfig.targetCode]
           const {
             id: providerId,
             provider,
             providerOptions: userProviderOptions,
             temperature,
-          } = translateProviderConfig
-          const modelName = resolveModelId(translateProviderConfig.model)
+          } = activeTranslateProviderConfig
+          const modelName = resolveModelId(activeTranslateProviderConfig.model)
           const providerOptions = getProviderOptionsWithOverride(modelName ?? "", provider, userProviderOptions)
-          const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, cleanText)
+          const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, cleanSelectionContent)
 
           const abortController = new AbortController()
           cancelTranslation = () => abortController.abort()
@@ -124,16 +137,16 @@ export function TranslatePopover() {
           }
 
           const normalized = latestText.trim()
-          setTranslatedText(normalized === cleanText ? "" : normalized)
+          setTranslatedText(normalized === cleanSelectionContent ? "" : normalized)
           return
         }
 
-        const backgroundTranslation = await translateTextForSelection(cleanText)
+        const backgroundTranslation = await translateTextForSelection(cleanSelectionContent)
         if (isCancelled) {
           return
         }
         const normalized = backgroundTranslation.trim()
-        setTranslatedText(normalized === cleanText ? "" : normalized)
+        setTranslatedText(normalized === cleanSelectionContent ? "" : normalized)
       }
       catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -166,9 +179,9 @@ export function TranslatePopover() {
     }
   }, [
     isVisible,
-    selectionContent,
+    cleanSelectionContent,
     languageConfig.targetCode,
-    translateProviderConfig,
+    translateProviderSignature,
   ])
 
   return (

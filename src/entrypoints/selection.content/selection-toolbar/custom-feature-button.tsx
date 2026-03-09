@@ -99,6 +99,22 @@ export function SelectionToolbarCustomFeaturePopover() {
     const paragraphCandidate = selectionRange ? getSelectionParagraphText(selectionRange) : cleanSelection
     return paragraphCandidate || cleanSelection
   }, [cleanSelection, selectionRange])
+  const activeFeatureSignature = useMemo(
+    () => activeFeature ? JSON.stringify(activeFeature) : "",
+    [activeFeature],
+  )
+  const activeProviderConfig = useMemo(
+    () => activeFeature
+      ? providersConfig.find(provider => provider.id === activeFeature.providerId) ?? null
+      : null,
+    [activeFeature, providersConfig],
+  )
+  const activeProviderSignature = useMemo(
+    () => activeProviderConfig ? JSON.stringify(activeProviderConfig) : "",
+    [activeProviderConfig],
+  )
+  const latestActiveFeatureRef = useRef(activeFeature)
+  const latestActiveProviderConfigRef = useRef(activeProviderConfig)
 
   const handleClose = useCallback(() => {
     setActiveCustomFeatureId(null)
@@ -108,7 +124,15 @@ export function SelectionToolbarCustomFeaturePopover() {
   }, [setActiveCustomFeatureId])
 
   useEffect(() => {
-    if (!isVisible || !activeFeature) {
+    latestActiveFeatureRef.current = activeFeature
+  }, [activeFeature])
+
+  useEffect(() => {
+    latestActiveProviderConfigRef.current = activeProviderConfig
+  }, [activeProviderConfig])
+
+  useEffect(() => {
+    if (!isVisible || !activeCustomFeatureId) {
       return
     }
 
@@ -131,7 +155,13 @@ export function SelectionToolbarCustomFeaturePopover() {
         return
       }
 
-      const providerConfig = providersConfig.find(provider => provider.id === activeFeature.providerId)
+      const activeFeature = latestActiveFeatureRef.current
+      if (!activeFeature) {
+        setRequestError("Selected feature is unavailable")
+        return
+      }
+
+      const providerConfig = latestActiveProviderConfigRef.current
       if (!providerConfig || !isLLMProviderConfig(providerConfig)) {
         setRequestError("Selected provider is unavailable for this feature")
         return
@@ -219,7 +249,7 @@ export function SelectionToolbarCustomFeaturePopover() {
       isCancelled = true
       abortController.abort()
     }
-  }, [activeFeature, cleanSelection, isVisible, languageConfig.targetCode, paragraphText, providersConfig])
+  }, [activeCustomFeatureId, activeFeatureSignature, activeProviderSignature, cleanSelection, isVisible, languageConfig.targetCode, paragraphText])
 
   return (
     <PopoverWrapper

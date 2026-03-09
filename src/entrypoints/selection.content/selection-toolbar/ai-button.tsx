@@ -58,15 +58,23 @@ export function AiPopover() {
     return data
   }, [selectionRange, isVisible])
 
+  const vocabularyInsightProviderSignature = vocabularyInsightProviderConfig
+    ? JSON.stringify(vocabularyInsightProviderConfig)
+    : null
+  const languageSignature = JSON.stringify(config.language)
+
   const {
     isLoading,
     error,
   } = useQuery({
     queryKey: [
       "analyzeSelection",
-      highlightData,
-      vocabularyInsightProviderConfig,
-      config,
+      highlightData?.context.selection ?? "",
+      highlightData?.context.before ?? "",
+      highlightData?.context.after ?? "",
+      vocabularyInsightProviderSignature,
+      languageSignature,
+      detectedCode,
     ],
     queryFn: async ({ signal }) => {
       if (!highlightData || !vocabularyInsightProviderConfig || !config) {
@@ -133,6 +141,9 @@ export function AiPopover() {
       }
     },
     enabled: !!highlightData,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
   return (
