@@ -26,8 +26,7 @@
     "zip:edge": "DOTENV_CONFIG_QUIET=false WXT_ZIP_MODE=true wxt zip -b edge",
     "zip:firefox": "DOTENV_CONFIG_QUIET=false WXT_ZIP_MODE=true wxt zip -b firefox --mv3",
     "zip:all": "DOTENV_CONFIG_QUIET=false pnpm zip && pnpm zip:edge && pnpm zip:firefox",
-    "release": "changeset tag && git push origin --tags",
-    "prepare": "husky"
+    "release": "changeset tag && git push origin --tags"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.63",
@@ -114,8 +113,6 @@
     "@antfu/eslint-config": "^7.4.3",
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
-    "@commitlint/cli": "^20.4.2",
-    "@commitlint/config-conventional": "^20.4.2",
     "@eslint-react/eslint-plugin": "^2.13.0",
     "@faker-js/faker": "^10.3.0",
     "@iconify/react": "^6.0.2",
@@ -139,9 +136,7 @@
     "eslint-plugin-format": "^1.4.0",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
-    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
-    "lint-staged": "^16.2.7",
     "nx": "^22.5.2",
     "postcss": "^8.5.6",
     "postcss-rem-to-responsive-pixel": "^7.0.1",
