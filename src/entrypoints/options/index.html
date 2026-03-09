@@ -4,6 +4,76 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Options | Read Frog</title>
+    <style>
+      :root {
+        background-color: oklch(1 0 0);
+        color: oklch(0.141 0.005 285.823);
+        color-scheme: light;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          background-color: oklch(0.141 0.005 285.823);
+          color: oklch(0.985 0 0);
+          color-scheme: dark;
+        }
+      }
+
+      html, body, #root {
+        min-height: 100%;
+      }
+
+      html, body {
+        background-color: inherit;
+        color: inherit;
+      }
+    </style>
+    <script>
+      (() => {
+        const themes = {
+          light: {
+            background: "oklch(1 0 0)",
+            foreground: "oklch(0.141 0.005 285.823)",
+          },
+          dark: {
+            background: "oklch(0.141 0.005 285.823)",
+            foreground: "oklch(0.985 0 0)",
+          },
+        }
+        const root = document.documentElement
+        const getSystemTheme = () =>
+          window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light"
+        const applyTheme = (theme) => {
+          const { background, foreground } = themes[theme]
+          root.classList.remove("light", "dark")
+          root.classList.add(theme)
+          root.style.colorScheme = theme
+          root.style.backgroundColor = background
+          root.style.color = foreground
+        }
+        const resolveTheme = (themeMode) =>
+          themeMode === "dark" ? "dark" : themeMode === "light" ? "light" : getSystemTheme()
+
+        applyTheme(getSystemTheme())
+
+        const browserStorage = globalThis.browser?.storage?.local
+        if (browserStorage?.get) {
+          void browserStorage.get(["theme", "local:theme"]).then((result) => {
+            applyTheme(resolveTheme(result?.["local:theme"] ?? result?.theme))
+          }).catch(() => {})
+          return
+        }
+
+        const chromeStorage = globalThis.chrome?.storage?.local
+        if (!chromeStorage?.get) {
+          return
+        }
+
+        chromeStorage.get(["theme", "local:theme"], (result) => {
+          applyTheme(resolveTheme(result?.["local:theme"] ?? result?.theme))
+        })
+      })()
+    </script>
 
     <!-- Customize the manifest options -->
     <meta name="manifest.open_in_tab" content="true" />
