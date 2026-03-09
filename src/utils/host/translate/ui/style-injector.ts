@@ -9,11 +9,15 @@ function supportsAdoptedStyleSheets(root: StyleRoot): boolean {
   try {
     return "adoptedStyleSheets" in root
       && root.adoptedStyleSheets !== undefined
-      && Array.isArray(root.adoptedStyleSheets)
+      && Array.from(root.adoptedStyleSheets).every(sheet => sheet instanceof CSSStyleSheet)
   }
   catch {
     return false
   }
+}
+
+function getAdoptedStyleSheets(root: StyleRoot): CSSStyleSheet[] {
+  return Array.from(root.adoptedStyleSheets)
 }
 
 function injectStyleElement(root: StyleRoot, id: string, cssText: string): void {
@@ -62,7 +66,7 @@ export function ensurePresetStyles(root: StyleRoot): void {
   injectedPresetRoots.add(root)
 
   if (supportsAdoptedStyleSheets(root)) {
-    root.adoptedStyleSheets = [...root.adoptedStyleSheets, getPresetStyleSheet()]
+    root.adoptedStyleSheets = [...getAdoptedStyleSheets(root), getPresetStyleSheet()]
   }
   else {
     injectStyleElement(root, "read-frog-preset-styles", FULL_PRESET_CSS)
@@ -90,7 +94,7 @@ export async function ensureCustomCSS(root: StyleRoot, cssText: string): Promise
       sheet = new CSSStyleSheet()
       // Set in map first to prevent race condition with concurrent calls
       customCSSMap.set(root, sheet)
-      root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet]
+      root.adoptedStyleSheets = [...getAdoptedStyleSheets(root), sheet]
     }
     await sheet.replace(cssText)
   }

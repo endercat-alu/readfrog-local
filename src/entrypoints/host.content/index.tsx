@@ -19,7 +19,7 @@ import { onMessage, sendMessage } from "@/utils/message"
 import { protectSelectAllShadowRoot } from "@/utils/select-all"
 import { insertShadowRootUIWrapperInto } from "@/utils/shadow-root"
 import { isSiteEnabled } from "@/utils/site-control"
-import { addStyleToShadow } from "@/utils/styles"
+import { addStyleToShadow, injectBaseStylesToShadow } from "@/utils/styles"
 import { getLocalThemeMode } from "@/utils/theme"
 import App from "./app"
 import { bindTranslationShortcutKey } from "./translation-control/bind-translation-shortcut"
@@ -27,7 +27,6 @@ import { handleTranslationModeChange } from "./translation-control/handle-config
 import { registerNodeTranslationTriggers } from "./translation-control/node-translation"
 import { PageTranslationManager } from "./translation-control/page-translation"
 import "@/utils/crypto-polyfill"
-import "@/assets/styles/theme.css"
 import "./listen"
 import "./style.css"
 
@@ -75,6 +74,7 @@ export default defineContentScript({
       onMount: (container, shadow, shadowHost) => {
         // Container is a body, and React warns when creating a root on the body, so create a wrapper div
         const wrapper = insertShadowRootUIWrapperInto(container)
+        injectBaseStylesToShadow(shadow)
         addStyleToShadow(shadow)
         protectSelectAllShadowRoot(shadowHost, wrapper)
 

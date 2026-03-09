@@ -1,3 +1,20 @@
+import textSmallCss from "@/assets/styles/text-small.css?inline"
+import themeCss from "@/assets/styles/theme.css?inline"
+
+const SHADOW_BASE_STYLE_ID = "read-frog-shadow-base-styles"
+
+function getAdoptedStyleSheets(root: ShadowRoot): CSSStyleSheet[] | null {
+  try {
+    if (!("adoptedStyleSheets" in root) || root.adoptedStyleSheets === undefined) {
+      return null
+    }
+    return Array.from(root.adoptedStyleSheets)
+  }
+  catch {
+    return null
+  }
+}
+
 export function addStyleToShadow(shadow: ShadowRoot) {
   document.head.querySelectorAll("style").forEach((styleEl) => {
     if (styleEl.textContent?.includes("[data-sonner-toaster]")) {
@@ -13,6 +30,17 @@ export function addStyleToShadow(shadow: ShadowRoot) {
       }
     }
   })
+}
+
+export function injectBaseStylesToShadow(shadow: ShadowRoot) {
+  if (shadow.querySelector(`#${SHADOW_BASE_STYLE_ID}`)) {
+    return
+  }
+
+  const styleElement = document.createElement("style")
+  styleElement.id = SHADOW_BASE_STYLE_ID
+  styleElement.textContent = `${themeCss}\n${textSmallCss}`
+  shadow.append(styleElement)
 }
 
 function isInternalStyleElement(node: Node) {
@@ -43,16 +71,7 @@ function isInternalStyleElement(node: Node) {
 export function mirrorDynamicStyles(selector: string, shadowRoot: ShadowRoot, contentMatch?: string): () => void {
   // TODO: 目前函数只会把找到的第一个 style 放进来，但是可能存在多个 style 匹配，那其实要全部放进来，并且对应不同的 mirrorSheet
 
-  // Check if adoptedStyleSheets is supported
-  let supportsAdoptedStyleSheets = false
-  try {
-    supportsAdoptedStyleSheets = "adoptedStyleSheets" in shadowRoot
-      && shadowRoot.adoptedStyleSheets !== undefined
-      && Array.isArray(shadowRoot.adoptedStyleSheets)
-  }
-  catch {
-    supportsAdoptedStyleSheets = false
-  }
+  let supportsAdoptedStyleSheets = getAdoptedStyleSheets(shadowRoot) !== null
 
   let mirrorSheet: CSSStyleSheet | null = null
   let mirrorStyleElement: HTMLStyleElement | null = null
@@ -60,8 +79,11 @@ export function mirrorDynamicStyles(selector: string, shadowRoot: ShadowRoot, co
   if (supportsAdoptedStyleSheets) {
     try {
       mirrorSheet = new CSSStyleSheet()
-      // Use assignment instead of push for better compatibility
-      shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, mirrorSheet]
+      const adoptedStyleSheets = getAdoptedStyleSheets(shadowRoot)
+      if (!adoptedStyleSheets) {
+        throw new Error("adoptedStyleSheets unavailable")
+      }
+      shadowRoot.adoptedStyleSheets = [...adoptedStyleSheets, mirrorSheet]
     }
     catch {
       // Fallback if adoptedStyleSheets fails
@@ -148,7 +170,10 @@ export function mirrorDynamicStyles(selector: string, shadowRoot: ShadowRoot, co
 
     if (mirrorSheet && supportsAdoptedStyleSheets) {
       try {
-        shadowRoot.adoptedStyleSheets = shadowRoot.adoptedStyleSheets.filter(sheet => sheet !== mirrorSheet)
+        const adoptedStyleSheets = getAdoptedStyleSheets(shadowRoot)
+        if (adoptedStyleSheets) {
+          shadowRoot.adoptedStyleSheets = adoptedStyleSheets.filter(sheet => sheet !== mirrorSheet)
+        }
       }
       catch {
         // ignore cleanup failures
