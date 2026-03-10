@@ -6,18 +6,53 @@ import { CONFIG_SCHEMA_VERSION, CONFIG_STORAGE_KEY, DEFAULT_CONFIG, LAST_SYNCED_
 import { logger } from "../logger"
 import { migrateConfig } from "./migration"
 
-export async function getLocalConfig() {
-  const config = await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`)
+let localConfigCache: Config | null | undefined
+let hasInitializedLocalConfigCache = false
+let hasRegisteredLocalConfigWatcher = false
+
+function parseLocalConfig(config: Config | null | undefined): Config | null {
   if (!config) {
     logger.warn("No config found in storage")
     return null
   }
+
   const parsedConfig = configSchema.safeParse(config)
   if (!parsedConfig.success) {
     logger.error("Config is invalid, using default config")
     return DEFAULT_CONFIG
   }
+
   return parsedConfig.data
+}
+
+function ensureLocalConfigWatcher() {
+  if (hasRegisteredLocalConfigWatcher) {
+    return
+  }
+
+  hasRegisteredLocalConfigWatcher = true
+
+  try {
+    storage.watch<Config>(`local:${CONFIG_STORAGE_KEY}`, (newConfig) => {
+      localConfigCache = parseLocalConfig(newConfig)
+      hasInitializedLocalConfigCache = true
+    })
+  }
+  catch {
+    hasRegisteredLocalConfigWatcher = false
+  }
+}
+
+export async function getLocalConfig() {
+  ensureLocalConfigWatcher()
+
+  if (hasInitializedLocalConfigCache) {
+    return localConfigCache ?? null
+  }
+
+  localConfigCache = parseLocalConfig(await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`))
+  hasInitializedLocalConfigCache = true
+  return localConfigCache ?? null
 }
 
 export async function setLocalConfig(config: Config) {
@@ -25,6 +60,8 @@ export async function setLocalConfig(config: Config) {
   if (!parsedConfig.success) {
     throw new Error("Config is invalid")
   }
+  localConfigCache = parsedConfig.data
+  hasInitializedLocalConfigCache = true
   await storage.setItem<Config>(`local:${CONFIG_STORAGE_KEY}`, parsedConfig.data)
   await storage.setMeta<Partial<ConfigMeta>>(`local:${CONFIG_STORAGE_KEY}`, { lastModifiedAt: Date.now() })
 }
@@ -65,6 +102,8 @@ export async function setLocalConfigAndMeta(config: Config, meta: Partial<Config
   if (!parsedConfig.success) {
     throw new Error("Config is invalid")
   }
+  localConfigCache = parsedConfig.data
+  hasInitializedLocalConfigCache = true
   await storage.setItem<Config>(`local:${CONFIG_STORAGE_KEY}`, parsedConfig.data)
   await storage.setMeta<Partial<ConfigMeta>>(`local:${CONFIG_STORAGE_KEY}`, { ...meta, lastModifiedAt })
 }

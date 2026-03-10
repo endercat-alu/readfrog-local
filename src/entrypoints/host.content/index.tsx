@@ -109,6 +109,7 @@ export default defineContentScript({
       rootMargin: `${preloadConfig.margin}px`,
       threshold: preloadConfig.threshold,
     })
+    manager.setConfig(initialConfig ?? null)
 
     // Removed shortcutKeyManager class
 
@@ -189,6 +190,7 @@ export default defineContentScript({
       if (newConfig) {
         latestConfig = newConfig
       }
+      manager.setConfig(newConfig ?? null)
       void bindTranslationShortcutKey(manager)
 
       // Auto re-translate when translation mode changes while page translation is active

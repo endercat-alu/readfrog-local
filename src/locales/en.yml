@@ -632,6 +632,11 @@ options:
       description: Enhance translation quality by providing article context to the AI
       enable: Enable AI Smart Context Translation
       enableDescription: AI uses article summary to improve translation accuracy. Requires LLM provider. Adds latency when starting to translate a page and increases API costs.
+      mode:
+        label: Capture Scope
+        description: Viewport only captures visible content and related metadata. Document keeps the previous full-page capture behavior.
+        viewport: Viewport Only
+        document: Entire Document
   tts:
     title: Text to Speech
     description: Use Edge TTS voice settings for the Speak button.

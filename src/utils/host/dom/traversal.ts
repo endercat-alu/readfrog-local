@@ -17,6 +17,22 @@ import {
   isTextNode,
 } from "./filter"
 
+interface WalkAndLabelResult {
+  forceBlock: boolean
+  isInlineNode: boolean
+}
+
+interface WalkAndLabelOptions {
+  collectParagraphs?: boolean
+  collectMutationRoots?: boolean
+  dontWalkIntoElementsCache?: WeakSet<HTMLElement>
+}
+
+export interface WalkAndLabelScanResult extends WalkAndLabelResult {
+  isolatedMutationRoots: HTMLElement[]
+  paragraphs: HTMLElement[]
+}
+
 export function extractTextContent(node: TransNode, config: Config): string {
   if (isTextNode(node)) {
     const text = node.textContent ?? ""
@@ -61,80 +77,145 @@ export function walkAndLabelElement(
   element: HTMLElement,
   walkId: string,
   config: Config,
-): { forceBlock: boolean, isInlineNode: boolean } {
-  if (isDontWalkIntoButTranslateAsChildElement(element) || isDontWalkIntoAndDontTranslateAsChildElement(element, config)) {
-    return {
-      forceBlock: false,
-      isInlineNode: false,
-    }
-  }
+): WalkAndLabelResult
+export function walkAndLabelElement(
+  element: HTMLElement,
+  walkId: string,
+  config: Config,
+  options: WalkAndLabelOptions & { collectParagraphs: true, collectMutationRoots: true },
+): WalkAndLabelScanResult
+export function walkAndLabelElement(
+  element: HTMLElement,
+  walkId: string,
+  config: Config,
+  options: WalkAndLabelOptions = {},
+): WalkAndLabelResult | WalkAndLabelScanResult {
+  const paragraphs: HTMLElement[] = []
+  const isolatedMutationRoots: HTMLElement[] = []
+  const ignoredElements = new WeakSet<HTMLElement>()
+  const computedResults = new WeakMap<HTMLElement, WalkAndLabelResult>()
+  const stack: Array<{ element: HTMLElement, exiting: boolean }> = [{ element, exiting: false }]
 
-  element.setAttribute(WALKED_ATTRIBUTE, walkId)
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current)
+      continue
 
-  if (element.shadowRoot) {
-    for (const child of element.shadowRoot.children) {
-      if (isHTMLElement(child)) {
-        walkAndLabelElement(child, walkId, config)
+    const { element: currentElement, exiting } = current
+
+    if (!exiting) {
+      const isDontWalkInto = isDontWalkIntoButTranslateAsChildElement(currentElement)
+      if (isDontWalkInto) {
+        options.dontWalkIntoElementsCache?.add(currentElement)
       }
-    }
-  }
 
-  let hasInlineNodeChild = false
-  let forceBlock = false
-
-  const validChildNodes = Array.from(element.childNodes).filter((child: ChildNode) => {
-    if (child.nodeType === Node.TEXT_NODE)
-      return true
-    if (isHTMLElement(child)) {
-      return !((isDontWalkIntoButTranslateAsChildElement(child) || isDontWalkIntoAndDontTranslateAsChildElement(child, config)))
-    }
-    return false
-  })
-
-  for (const child of validChildNodes) {
-    if (child.nodeType === Node.TEXT_NODE) {
-      if (child.textContent?.trim()) {
-        hasInlineNodeChild = true
+      if (isDontWalkInto || isDontWalkIntoAndDontTranslateAsChildElement(currentElement, config)) {
+        ignoredElements.add(currentElement)
+        computedResults.set(currentElement, { forceBlock: false, isInlineNode: false })
+        continue
       }
+
+      currentElement.setAttribute(WALKED_ATTRIBUTE, walkId)
+      stack.push({ element: currentElement, exiting: true })
+
+      if (currentElement.shadowRoot) {
+        if (options.collectMutationRoots) {
+          for (const child of currentElement.shadowRoot.children) {
+            if (isHTMLElement(child)) {
+              isolatedMutationRoots.push(child)
+            }
+          }
+        }
+
+        for (let i = currentElement.shadowRoot.children.length - 1; i >= 0; i--) {
+          const child = currentElement.shadowRoot.children[i]
+          if (isHTMLElement(child)) {
+            stack.push({ element: child, exiting: false })
+          }
+        }
+      }
+
+      for (let i = currentElement.childNodes.length - 1; i >= 0; i--) {
+        const child = currentElement.childNodes[i]
+        if (isHTMLElement(child)) {
+          stack.push({ element: child, exiting: false })
+        }
+      }
+
       continue
     }
 
-    if (isHTMLElement(child)) {
-      const result = walkAndLabelElement(child, walkId, config)
+    let hasInlineNodeChild = false
+    let forceBlock = false
 
-      forceBlock = forceBlock || result.forceBlock
+    for (const child of currentElement.childNodes) {
+      if (isTextNode(child)) {
+        if (child.textContent?.trim()) {
+          hasInlineNodeChild = true
+        }
+        continue
+      }
 
-      if (result.isInlineNode) {
+      if (!isHTMLElement(child) || ignoredElements.has(child)) {
+        continue
+      }
+
+      const childResult = computedResults.get(child)
+      if (!childResult) {
+        continue
+      }
+
+      forceBlock = forceBlock || childResult.forceBlock
+      if (childResult.isInlineNode) {
         hasInlineNodeChild = true
       }
     }
-  }
 
-  if (hasInlineNodeChild) {
-    element.setAttribute(PARAGRAPH_ATTRIBUTE, "")
-  }
-
-  // force block will force the current and ancestor elements to be block node
-  forceBlock = forceBlock || FORCE_BLOCK_TAGS.has(element.tagName)
-
-  if (element.textContent?.trim() === "" && !forceBlock) {
-    return {
-      forceBlock: false,
-      isInlineNode: false,
+    if (hasInlineNodeChild) {
+      currentElement.setAttribute(PARAGRAPH_ATTRIBUTE, "")
+      if (options.collectParagraphs) {
+        paragraphs.push(currentElement)
+      }
     }
+
+    forceBlock = forceBlock || FORCE_BLOCK_TAGS.has(currentElement.tagName)
+
+    if (currentElement.textContent?.trim() === "" && !forceBlock) {
+      computedResults.set(currentElement, {
+        forceBlock: false,
+        isInlineNode: false,
+      })
+      continue
+    }
+
+    const isInlineNode = isShallowInlineHTMLElement(currentElement)
+    const shouldForceBlock = forceBlock || isCustomForceBlockTranslation(currentElement)
+
+    if (shouldForceBlock || (!isInlineNode && isShallowBlockHTMLElement(currentElement))) {
+      currentElement.setAttribute(BLOCK_ATTRIBUTE, "")
+    }
+    else if (isInlineNode) {
+      currentElement.setAttribute(INLINE_ATTRIBUTE, "")
+    }
+
+    computedResults.set(currentElement, {
+      forceBlock,
+      isInlineNode,
+    })
   }
 
-  const isInlineNode = isShallowInlineHTMLElement(element)
-
-  if (isShallowBlockHTMLElement(element) || forceBlock || isCustomForceBlockTranslation(element)) {
-    element.setAttribute(BLOCK_ATTRIBUTE, "")
+  const result = computedResults.get(element) ?? {
+    forceBlock: false,
+    isInlineNode: false,
   }
-  else if (isInlineNode) {
-    element.setAttribute(INLINE_ATTRIBUTE, "")
+
+  if (!options.collectParagraphs && !options.collectMutationRoots) {
+    return result
   }
 
   return {
-    forceBlock,
-    isInlineNode,
+    ...result,
+    isolatedMutationRoots,
+    paragraphs,
   }
 }

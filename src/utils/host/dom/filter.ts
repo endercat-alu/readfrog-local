@@ -157,9 +157,8 @@ export function isDontWalkIntoAndDontTranslateAsChildElement(element: HTMLElemen
     && MAIN_CONTENT_IGNORE_TAGS.has(element.tagName)
     && !isInsideContentContainer(element)
   const dontWalkInvalidTag = DONT_WALK_AND_TRANSLATE_TAGS.has(element.tagName)
-  const dontWalkCSS
-    = window.getComputedStyle(element).display === "none"
-      || window.getComputedStyle(element).visibility === "hidden"
+  const computedStyle = window.getComputedStyle(element)
+  const dontWalkCSS = computedStyle.display === "none" || computedStyle.visibility === "hidden"
   const dontWalkAriaHidden = element.getAttribute("aria-hidden") === "true"
   const dontWalkVisuallyHidden = ["sr-only", "visually-hidden"].some(cls =>
     element.classList.contains(cls),

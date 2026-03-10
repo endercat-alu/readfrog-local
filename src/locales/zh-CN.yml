@@ -632,6 +632,11 @@ options:
       description: 通过向 AI 提供文章上下文来提高翻译质量
       enable: 启用 AI 智能上下文翻译
       enableDescription: AI 使用文章摘要来提高翻译准确性。需要 LLM 翻译提供商。刚开始翻译页面时会有延迟，并增加 API 费用。
+      mode:
+        label: 抓取范围
+        description: 仅视口只抓当前可视内容和相关元数据。整页保持原来的全页抓取行为。
+        viewport: 仅视口
+        document: 整页内容
   tts:
     title: 文本转语音
     description: 使用 Edge TTS 语音参数来自定义朗读按钮。

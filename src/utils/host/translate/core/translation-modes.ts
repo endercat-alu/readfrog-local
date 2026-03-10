@@ -16,6 +16,7 @@ import { removeTranslatedWrapperWithRestore } from "../dom/translation-cleanup"
 import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
 import { shouldFilterSmallParagraph } from "../filter-small-paragraph"
+import { setPageTranslationRuntimeConfig } from "../runtime-config"
 import { setTranslationDirAndLang } from "../translation-attributes"
 import { createSpinnerInside, getTranslatedTextAndRemoveSpinner } from "../ui/spinner"
 import { isNumericContent } from "../ui/translation-utils"
@@ -33,6 +34,8 @@ export async function translateNodes(
 ): Promise<void> {
   if (options?.signal?.aborted)
     return
+
+  setPageTranslationRuntimeConfig(config)
 
   const translationMode = config.translate.mode
   if (translationMode === "translationOnly") {

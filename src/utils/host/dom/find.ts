@@ -87,30 +87,45 @@ export function deepQueryTopLevelSelector(element: HTMLElement | ShadowRoot | Do
   }
 
   const result: HTMLElement[] = []
+  const stack: HTMLElement[] = []
+
   if (element instanceof ShadowRoot) {
-    for (const child of element.children) {
+    for (let i = element.children.length - 1; i >= 0; i--) {
+      const child = element.children[i]
       if (isHTMLElement(child)) {
-        result.push(...deepQueryTopLevelSelector(child, selectorFn))
-      }
-    }
-    return result
-  }
-
-  if (selectorFn(element)) {
-    return [element]
-  }
-
-  if (element.shadowRoot) {
-    for (const child of element.shadowRoot.children) {
-      if (isHTMLElement(child)) {
-        result.push(...deepQueryTopLevelSelector(child, selectorFn))
+        stack.push(child)
       }
     }
   }
+  else {
+    stack.push(element)
+  }
 
-  for (const child of element.children) {
-    if (isHTMLElement(child)) {
-      result.push(...deepQueryTopLevelSelector(child, selectorFn))
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    if (selectorFn(current)) {
+      result.push(current)
+      continue
+    }
+
+    if (current.shadowRoot) {
+      for (let i = current.shadowRoot.children.length - 1; i >= 0; i--) {
+        const child = current.shadowRoot.children[i]
+        if (isHTMLElement(child)) {
+          stack.push(child)
+        }
+      }
+    }
+
+    for (let i = current.children.length - 1; i >= 0; i--) {
+      const child = current.children[i]
+      if (isHTMLElement(child)) {
+        stack.push(child)
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 import type { Config } from "@/types/config/config"
 import type { SelectionToolbarCustomFeature } from "@/types/config/selection-toolbar"
-import type { PageTranslateRange } from "@/types/config/translate"
+import type { AIContentAwareMode, PageTranslateRange } from "@/types/config/translate"
 import { CUSTOM_FEATURE_TEMPLATES } from "./custom-feature-templates"
 import { DEFAULT_TRANSLATE_PROMPTS_CONFIG } from "./prompt"
 import { DEFAULT_PROVIDER_CONFIG_LIST } from "./providers"
@@ -17,7 +17,7 @@ export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 export const THEME_STORAGE_KEY = "theme"
 export const DETECTED_CODE_STORAGE_KEY = "detectedCode"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 60
+export const CONFIG_SCHEMA_VERSION = 61
 
 export const DEFAULT_FLOATING_BUTTON_POSITION = 0.66
 
@@ -76,6 +76,7 @@ export const DEFAULT_CONFIG: Config = {
       },
     },
     enableAIContentAware: false,
+    aiContentAwareMode: "viewport",
     customPromptsConfig: DEFAULT_TRANSLATE_PROMPTS_CONFIG,
     requestQueueConfig: {
       capacity: DEFAULT_REQUEST_CAPACITY,
@@ -176,4 +177,12 @@ export const PAGE_TRANSLATE_RANGE_ITEMS: Record<
 > = {
   main: { label: "Main" },
   all: { label: "All" },
+}
+
+export const AI_CONTENT_AWARE_MODE_ITEMS: Record<
+  AIContentAwareMode,
+  { label: string }
+> = {
+  viewport: { label: "Viewport" },
+  document: { label: "Document" },
 }

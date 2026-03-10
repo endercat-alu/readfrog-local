@@ -1,12 +1,11 @@
+import type { Config } from "@/types/config/config"
 import { getDetectedCodeFromStorage } from "@/utils/config/languages"
 import { getLocalConfig } from "@/utils/config/storage"
 import { CONTENT_WRAPPER_CLASS } from "@/utils/constants/dom-labels"
 import { hasNoWalkAncestor, isDontWalkIntoButTranslateAsChildElement, isHTMLElement } from "@/utils/host/dom/filter"
-import { deepQueryTopLevelSelector } from "@/utils/host/dom/find"
 import { walkAndLabelElement } from "@/utils/host/dom/traversal"
 import { removeAllTranslatedWrapperNodes, translateWalkedElement } from "@/utils/host/translate/node-manipulation"
 import { validateTranslationConfigAndToast } from "@/utils/host/translate/translate-text"
-import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 
 type SimpleIntersectionOptions = Omit<IntersectionObserverInit, "threshold"> & {
@@ -46,6 +45,7 @@ export class PageTranslationManager implements IPageTranslationManager {
   private static readonly MAX_DURATION = 500
   private static readonly MOVE_THRESHOLD = 30 * 30
   private static readonly NAVIGATION_SETTLE_DELAY = 350
+  private static readonly MUTATION_SCAN_BATCH_DELAY = 16
   private static readonly DEFAULT_INTERSECTION_OPTIONS: SimpleIntersectionOptions = {
     root: null,
     rootMargin: "600px",
@@ -62,6 +62,10 @@ export class PageTranslationManager implements IPageTranslationManager {
   private sessionVersion = 0
   private cleanupController: AbortController | null = null
   private translationController: AbortController | null = null
+  private sessionConfig: Config | null = null
+  private observedMutationRoots = new WeakSet<HTMLElement>()
+  private queuedMutationScanContainers = new Set<HTMLElement>()
+  private mutationScanTimer: number | null = null
 
   constructor(intersectionOptions: SimpleIntersectionOptions = {}) {
     if (intersectionOptions.threshold !== undefined) {
@@ -80,17 +84,22 @@ export class PageTranslationManager implements IPageTranslationManager {
     return this.isPageTranslating
   }
 
+  setConfig(config: Config | null): void {
+    this.sessionConfig = config
+  }
+
   async start(): Promise<void> {
     if (this.isPageTranslating) {
       console.warn("PageTranslationManager is already active")
       return
     }
 
-    const config = await getLocalConfig()
+    const config = this.sessionConfig ?? await getLocalConfig()
     if (!config) {
       console.warn("Config is not initialized")
       return
     }
+    this.sessionConfig = config
 
     const detectedCode = await getDetectedCodeFromStorage()
 
@@ -205,71 +214,48 @@ export class PageTranslationManager implements IPageTranslationManager {
     }
   }
 
-  private async observerTopLevelParagraphs(container: HTMLElement): Promise<void> {
+  private observeTopLevelParagraphs(container: HTMLElement): void {
     const observer = this.intersectionObserver
-    if (!this.walkId || !observer)
+    const config = this.sessionConfig
+    if (!this.walkId || !observer || !config)
       return
 
-    const config = await getLocalConfig()
-    if (!config) {
-      logger.error("Global config is not initialized")
-      return
-    }
-
-    // Skip if container has an ancestor that should not be walked into
     if (hasNoWalkAncestor(container, config))
       return
 
-    walkAndLabelElement(container, this.walkId, config)
-    // if container itself has paragraph and the id
+    const scanResult = walkAndLabelElement(container, this.walkId, config, {
+      collectParagraphs: true,
+      collectMutationRoots: true,
+      dontWalkIntoElementsCache: this.dontWalkIntoElementsCache,
+    })
+
+    this.observeMutationRoots(scanResult.isolatedMutationRoots)
+
     if (container.hasAttribute("data-read-frog-paragraph") && container.getAttribute("data-read-frog-walked") === this.walkId) {
       observer.observe(container)
       return
     }
 
-    const paragraphs = this.collectParagraphElementsDeep(container, this.walkId)
-    const topLevelParagraphs = paragraphs.filter((el) => {
-      const ancestor = el.parentElement?.closest("[data-read-frog-paragraph]")
-      // keep it if either:
-      //  • no paragraph ancestor at all, or
-      //  • the ancestor is *not* inside container
-      return !ancestor || !container.contains(ancestor)
-    })
+    const topLevelParagraphs = this.filterTopLevelParagraphs(container, scanResult.paragraphs)
     topLevelParagraphs.forEach(el => observer.observe(el))
   }
 
-  /**
-   * Recursively collect elements with paragraph attributes from shadow roots and iframes
-   */
-  private collectParagraphElementsDeep(container: HTMLElement, walkId: string): HTMLElement[] {
-    const result: HTMLElement[] = []
-
-    const collectFromContainer = (root: HTMLElement | Document | ShadowRoot) => {
-      const elements = root.querySelectorAll<HTMLElement>(`[data-read-frog-paragraph][data-read-frog-walked="${CSS.escape(walkId)}"]`)
-      result.push(...Array.from(elements))
+  private filterTopLevelParagraphs(container: HTMLElement, paragraphs: HTMLElement[]): HTMLElement[] {
+    if (paragraphs.length <= 1) {
+      return paragraphs
     }
 
-    const traverseElement = (element: HTMLElement) => {
-      if (element.shadowRoot) {
-        collectFromContainer(element.shadowRoot)
-        for (const child of element.shadowRoot.children) {
-          if (child instanceof HTMLElement) {
-            traverseElement(child)
-          }
+    const paragraphSet = new Set(paragraphs)
+    return paragraphs.filter((paragraph) => {
+      let current = paragraph.parentElement
+      while (current && current !== container) {
+        if (paragraphSet.has(current)) {
+          return false
         }
+        current = current.parentElement
       }
-
-      for (const child of element.children) {
-        if (child instanceof HTMLElement) {
-          traverseElement(child)
-        }
-      }
-    }
-
-    collectFromContainer(container)
-    traverseElement(container)
-
-    return result
+      return true
+    })
   }
 
   /**
@@ -294,26 +280,63 @@ export class PageTranslationManager implements IPageTranslationManager {
     return wasDontWalkInto === true && isDontWalkIntoNow === false
   }
 
-  /**
-   * Initialize walkability state for an element and its descendants
-   */
-  private addDontWalkIntoElements(element: HTMLElement): void {
-    const dontWalkIntoElements = deepQueryTopLevelSelector(element, isDontWalkIntoButTranslateAsChildElement)
-    dontWalkIntoElements.forEach(el => this.dontWalkIntoElementsCache.add(el))
+  private queueMutationContainerScan(container: HTMLElement): void {
+    if (!this.isPageTranslating || !this.walkId) {
+      return
+    }
+
+    this.queuedMutationScanContainers.add(container)
+    if (this.mutationScanTimer !== null) {
+      return
+    }
+
+    const version = this.sessionVersion
+    this.mutationScanTimer = window.setTimeout(() => {
+      this.mutationScanTimer = null
+      this.flushQueuedMutationContainerScans(version)
+    }, PageTranslationManager.MUTATION_SCAN_BATCH_DELAY)
   }
 
-  /**
-   * Start observing mutations for a container and all its shadow roots
-   */
-  private observeMutations(container: HTMLElement): void {
+  private flushQueuedMutationContainerScans(version: number): void {
+    if (!this.isPageTranslating || version !== this.sessionVersion || !this.walkId) {
+      this.queuedMutationScanContainers.clear()
+      return
+    }
+
+    const containers = Array.from(this.queuedMutationScanContainers)
+    this.queuedMutationScanContainers.clear()
+    const queuedSet = new Set(containers)
+
+    for (const container of containers) {
+      let current = container.parentElement
+      let shouldSkip = false
+
+      while (current) {
+        if (queuedSet.has(current)) {
+          shouldSkip = true
+          break
+        }
+        current = current.parentElement
+      }
+
+      if (!shouldSkip) {
+        this.observeTopLevelParagraphs(container)
+      }
+    }
+  }
+
+  private observeMutationRoot(container: HTMLElement): void {
+    if (this.observedMutationRoots.has(container)) {
+      return
+    }
+
+    this.observedMutationRoots.add(container)
     const mutationObserver = new MutationObserver((records) => {
       for (const rec of records) {
         if (rec.type === "childList") {
           rec.addedNodes.forEach((node) => {
             if (isHTMLElement(node)) {
-              this.addDontWalkIntoElements(node)
-              void this.observerTopLevelParagraphs(node)
-              this.observeIsolatedDescendantsMutations(node)
+              this.queueMutationContainerScan(node)
             }
           })
         }
@@ -323,7 +346,7 @@ export class PageTranslationManager implements IPageTranslationManager {
         ) {
           const el = rec.target
           if (isHTMLElement(el) && this.didChangeToWalkable(el)) {
-            void this.observerTopLevelParagraphs(el)
+            this.queueMutationContainerScan(el)
           }
         }
       }
@@ -337,29 +360,11 @@ export class PageTranslationManager implements IPageTranslationManager {
     })
 
     this.mutationObservers.push(mutationObserver)
-    this.observeIsolatedDescendantsMutations(container)
   }
 
-  /**
-   * Recursively find and observe shadow roots and iframes in an element and its descendants
-   * These can't be find as top level paragraph elements because isolated shadow roots and iframes are not
-   * considered as part of the document.
-   */
-  private observeIsolatedDescendantsMutations(element: HTMLElement): void {
-    // Check if this element has a shadow root
-    if (element.shadowRoot) {
-      for (const child of element.shadowRoot.children) {
-        if (isHTMLElement(child)) {
-          this.observeMutations(child)
-        }
-      }
-    }
-
-    // Recursively check children
-    for (const child of element.children) {
-      if (isHTMLElement(child)) {
-        this.observeIsolatedDescendantsMutations(child)
-      }
+  private observeMutationRoots(containers: HTMLElement[]): void {
+    for (const container of containers) {
+      this.observeMutationRoot(container)
     }
   }
 
@@ -368,12 +373,24 @@ export class PageTranslationManager implements IPageTranslationManager {
     this.resetObservationSession()
     this.abortTranslation()
 
+    const config = this.sessionConfig ?? await getLocalConfig()
+    if (!config) {
+      return
+    }
+    this.sessionConfig = config
+
     const walkId = crypto.randomUUID()
     const controller = new AbortController()
     const signal = controller.signal
     this.walkId = walkId
     this.translationController = controller
     this.intersectionObserver = new IntersectionObserver(async (entries, observer) => {
+      const currentConfig = this.sessionConfig
+      if (!currentConfig) {
+        observer.disconnect()
+        return
+      }
+
       for (const entry of entries) {
         if (!this.isPageTranslating || version !== this.sessionVersion || signal.aborted) {
           observer.disconnect()
@@ -383,12 +400,6 @@ export class PageTranslationManager implements IPageTranslationManager {
         if (entry.isIntersecting) {
           if (isHTMLElement(entry.target)) {
             if (!entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
-              const currentConfig = await getLocalConfig()
-              if (!currentConfig) {
-                logger.error("Global config is not initialized")
-                return
-              }
-
               if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId || signal.aborted)
                 return
 
@@ -400,15 +411,14 @@ export class PageTranslationManager implements IPageTranslationManager {
       }
     }, this.intersectionOptions)
 
-    this.addDontWalkIntoElements(document.body)
-    await this.observerTopLevelParagraphs(document.body)
+    this.observeTopLevelParagraphs(document.body)
 
     if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId || signal.aborted) {
       this.resetObservationSession()
       return
     }
 
-    this.observeMutations(document.body)
+    this.observeMutationRoot(document.body)
   }
 
   private scheduleCleanup(walkId: string | null): void {
@@ -445,6 +455,13 @@ export class PageTranslationManager implements IPageTranslationManager {
   private resetObservationSession(): void {
     this.walkId = null
     this.dontWalkIntoElementsCache = new WeakSet()
+    this.observedMutationRoots = new WeakSet()
+    this.queuedMutationScanContainers.clear()
+
+    if (this.mutationScanTimer !== null) {
+      window.clearTimeout(this.mutationScanTimer)
+      this.mutationScanTimer = null
+    }
 
     if (this.intersectionObserver) {
       this.intersectionObserver.disconnect()

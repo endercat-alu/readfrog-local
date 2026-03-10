@@ -20,6 +20,10 @@ export const translationModeSchema = z.enum(TRANSLATION_MODES)
 export const pageTranslateRangeSchema = z.enum(["main", "all"])
 export type PageTranslateRange = z.infer<typeof pageTranslateRangeSchema>
 
+export const AI_CONTENT_AWARE_MODES = ["viewport", "document"] as const
+export const aiContentAwareModeSchema = z.enum(AI_CONTENT_AWARE_MODES)
+export type AIContentAwareMode = z.infer<typeof aiContentAwareModeSchema>
+
 export const PARAGRAPH_SEGMENTATION_RULES = ["blankLine", "visualLines"] as const
 export const paragraphSegmentationRuleSchema = z.enum(PARAGRAPH_SEGMENTATION_RULES)
 export type ParagraphSegmentationRule = z.infer<typeof paragraphSegmentationRuleSchema>
@@ -101,6 +105,7 @@ export const translateConfigSchema = z.object({
     paragraphSegmentation: paragraphSegmentationConfigSchema,
   }),
   enableAIContentAware: z.boolean(),
+  aiContentAwareMode: aiContentAwareModeSchema,
   customPromptsConfig: customPromptsConfigSchema,
   requestQueueConfig: requestQueueConfigSchema,
   batchQueueConfig: batchQueueConfigSchema,

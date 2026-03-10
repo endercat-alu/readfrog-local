@@ -510,6 +510,11 @@ options:
       description: 透過向 AI 提供文章上下文來提高翻譯品質
       enable: 啟用 AI 智慧上下文翻譯
       enableDescription: AI 使用文章摘要來提高翻譯準確性。需要 LLM 翻譯提供商。剛開始翻譯頁面時會有延遲，並增加 API 費用。
+      mode:
+        label: 擷取範圍
+        description: 僅視口只擷取目前可視內容和相關中繼資料。整頁保留原本的全頁擷取行為。
+        viewport: 僅視口
+        document: 整頁內容
   tts:
     title: 文字轉語音
     description: 使用 Edge TTS 語音參數來自訂「朗讀」按鈕。

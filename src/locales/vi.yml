@@ -510,6 +510,11 @@ options:
       description: Nâng cao chất lượng dịch bằng cách cung cấp ngữ cảnh bài viết cho AI
       enable: Bật dịch ngữ cảnh thông minh AI
       enableDescription: AI sử dụng tóm tắt bài viết để cải thiện độ chính xác dịch. Yêu cầu nhà cung cấp LLM. Thêm độ trễ khi bắt đầu dịch trang và tăng chi phí API.
+      mode:
+        label: Phạm vi lấy nội dung
+        description: Chỉ khung nhìn sẽ chỉ lấy nội dung đang hiển thị và siêu dữ liệu liên quan. Toàn bộ tài liệu giữ nguyên hành vi lấy toàn trang trước đây.
+        viewport: Chỉ khung nhìn
+        document: Toàn bộ tài liệu
   tts:
     title: Chuyển văn bản thành giọng nói
     description: Tùy chỉnh nút Đọc với cài đặt giọng nói Edge TTS.

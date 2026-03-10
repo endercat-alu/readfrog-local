@@ -50,6 +50,7 @@ async function translateSingleSubtitle(
     providerConfig,
     { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
     enableAIContentAware,
+    "document",
     { title: videoContext.videoTitle, textContent: videoContext.subtitlesTextContent },
   )
 

@@ -510,6 +510,11 @@ options:
       description: AI에 문서 컨텍스트를 제공하여 번역 품질을 향상시킵니다
       enable: AI 스마트 컨텍스트 번역 활성화
       enableDescription: AI가 문서 요약을 사용하여 번역 정확도를 향상시킵니다. LLM 제공업체가 필요합니다. 번역 시작 시 지연이 발생하고 API 비용이 증가합니다.
+      mode:
+        label: 수집 범위
+        description: 뷰포트 전용은 현재 보이는 내용과 관련 메타데이터만 수집합니다. 전체 문서는 기존 전체 페이지 수집 동작을 유지합니다.
+        viewport: 뷰포트만
+        document: 전체 문서
   tts:
     title: 텍스트 음성 변환
     description: Edge TTS 음성 설정으로 말하기 버튼을 사용자 지정하세요.

@@ -510,6 +510,11 @@ options:
       description: AI'ya makale bağlamı sağlayarak çeviri kalitesini artırın
       enable: AI Akıllı Bağlam Çevirisini Etkinleştir
       enableDescription: AI, çeviri doğruluğunu artırmak için makale özetini kullanır. LLM sağlayıcısı gerektirir. Bir sayfayı çevirmeye başlarken gecikme ekler ve API maliyetlerini artırır.
+      mode:
+        label: Yakalama Kapsamı
+        description: Yalnızca görünüm alanı, sadece ekranda görünen içerik ile ilgili meta verileri alır. Tüm belge, önceki tam sayfa alma davranışını korur.
+        viewport: Yalnızca Görünüm Alanı
+        document: Tüm Belge
   tts:
     title: Metinden Konuşmaya
     description: Konuş butonunu Edge TTS ses ayarlarıyla özelleştirin.

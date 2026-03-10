@@ -4,9 +4,15 @@ import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/l
 import { resolveProviderConfig } from "@/utils/constants/feature-providers"
 import { logger } from "@/utils/logger"
 import { getLocalConfig } from "../../config/storage"
+import { getPageTranslationRuntimeConfig } from "./runtime-config"
 import { MIN_LENGTH_FOR_SKIP_LLM_DETECTION, shouldSkipByLanguage, translateTextCore } from "./translate-text"
 
 async function getConfigOrThrow(): Promise<Config> {
+  const runtimeConfig = getPageTranslationRuntimeConfig()
+  if (runtimeConfig) {
+    return runtimeConfig
+  }
+
   const config = await getLocalConfig()
   if (!config) {
     throw new Error("No global config when translate text")
@@ -42,6 +48,7 @@ export async function translateTextForPage(text: string): Promise<string> {
     langConfig: config.language,
     providerConfig,
     enableAIContentAware: config.translate.enableAIContentAware,
+    aiContentAwareMode: config.translate.aiContentAwareMode,
   })
 }
 
@@ -58,6 +65,7 @@ export async function translateTextForSelection(text: string): Promise<string> {
     extraHashTags: ["selectionTranslation"],
     providerConfig,
     enableAIContentAware: config.translate.enableAIContentAware,
+    aiContentAwareMode: config.translate.aiContentAwareMode,
   })
 }
 
@@ -103,5 +111,6 @@ export async function translateTextForInput(
     extraHashTags: [`inputTranslation:${fromLang}->${toLang}`],
     providerConfig,
     enableAIContentAware: config.translate.enableAIContentAware,
+    aiContentAwareMode: config.translate.aiContentAwareMode,
   })
 }

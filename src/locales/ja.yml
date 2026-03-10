@@ -510,6 +510,11 @@ options:
       description: 記事のコンテキストを AI に提供して翻訳品質を向上させます
       enable: AI スマートコンテキスト翻訳を有効にする
       enableDescription: AI は記事の要約を使用して翻訳精度を向上させます。LLM プロバイダーが必要です。翻訳開始時に遅延が発生し、API コストが増加します。
+      mode:
+        label: 取得範囲
+        description: ビューポートのみは現在表示中の内容と関連メタデータだけを取得します。ドキュメント全体は従来の全ページ取得を維持します。
+        viewport: ビューポートのみ
+        document: ドキュメント全体
   tts:
     title: テキスト読み上げ
     description: Edge TTS の音声設定で読み上げボタンをカスタマイズします。
