@@ -2,7 +2,7 @@
 
 浏览器翻译扩展。
 
-仓库：<https://github.com/endercat-alu/readfrog-local>
+上游：<https://github.com/mengxi-ream/read-frog>
 
 完全开源。
 无宣传，无社区，无文档。
@@ -12,7 +12,10 @@
 
 ## Build
 
+- Node.js: >= 22.0.0
+- pnpm: 10.30.2
+
 ```bash
 pnpm install
-pnpm build
+pnpm zip:firefox
 ```
