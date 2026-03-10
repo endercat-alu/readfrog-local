@@ -14,7 +14,13 @@ export async function translateWalkedElement(
   walkId: string,
   config: Config,
   toggle: boolean = false,
+  options?: {
+    signal?: AbortSignal
+  },
 ): Promise<void> {
+  if (options?.signal?.aborted)
+    return
+
   if (!toggle && element.querySelector(`.${CONTENT_WRAPPER_CLASS}`))
     return
 
@@ -39,13 +45,16 @@ export async function translateWalkedElement(
 
     if (!hasBlockNodeChild) {
       const paragraphGroups = await splitElementIntoParagraphGroups(element, config)
+      if (options?.signal?.aborted)
+        return
+
       if (paragraphGroups) {
         paragraphGroups.forEach((group) => {
-          promises.push(translateNodes(group, walkId, toggle, config, true))
+          promises.push(translateNodes(group, walkId, toggle, config, true, options))
         })
       }
       else {
-        promises.push(translateNodes([element], walkId, toggle, config))
+        promises.push(translateNodes([element], walkId, toggle, config, false, options))
       }
     }
     else {
@@ -55,9 +64,9 @@ export async function translateWalkedElement(
       for (const child of children) {
         if (isTransNode(child) && isBlockTransNode(child) && !isTextNode(child)) {
           // force the children to be block translation style unless the parent is a flex parent
-          promises.push(translateNodes(consecutiveInlineNodes, walkId, toggle, config, !isFlexParent))
+          promises.push(translateNodes(consecutiveInlineNodes, walkId, toggle, config, !isFlexParent, options))
           consecutiveInlineNodes = []
-          promises.push(translateWalkedElement(child, walkId, config, toggle))
+          promises.push(translateWalkedElement(child, walkId, config, toggle, options))
         }
         else {
           consecutiveInlineNodes.push(child)
@@ -65,7 +74,7 @@ export async function translateWalkedElement(
       }
 
       if (consecutiveInlineNodes.length) {
-        promises.push(translateNodes(consecutiveInlineNodes, walkId, toggle, config, !isFlexParent))
+        promises.push(translateNodes(consecutiveInlineNodes, walkId, toggle, config, !isFlexParent, options))
         consecutiveInlineNodes = []
       }
     }
@@ -73,13 +82,13 @@ export async function translateWalkedElement(
   else {
     for (const child of element.childNodes) {
       if (isHTMLElement(child)) {
-        promises.push(translateWalkedElement(child, walkId, config, toggle))
+        promises.push(translateWalkedElement(child, walkId, config, toggle, options))
       }
     }
     if (element.shadowRoot) {
       for (const child of element.shadowRoot.children) {
         if (isHTMLElement(child)) {
-          promises.push(translateWalkedElement(child, walkId, config, toggle))
+          promises.push(translateWalkedElement(child, walkId, config, toggle, options))
         }
       }
     }

@@ -61,6 +61,7 @@ export class PageTranslationManager implements IPageTranslationManager {
   private navigationTimer: number | null = null
   private sessionVersion = 0
   private cleanupController: AbortController | null = null
+  private translationController: AbortController | null = null
 
   constructor(intersectionOptions: SimpleIntersectionOptions = {}) {
     if (intersectionOptions.threshold !== undefined) {
@@ -122,6 +123,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     this.isPageTranslating = false
     const walkId = this.walkId
     this.cancelPendingNavigationRefresh()
+    this.abortTranslation()
     this.abortCleanup()
     this.resetObservationSession()
     this.scheduleCleanup(walkId)
@@ -135,6 +137,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     const currentVersion = ++this.sessionVersion
 
     this.cancelPendingNavigationRefresh()
+    this.abortTranslation()
     this.abortCleanup()
     this.resetObservationSession()
     this.scheduleCleanup(walkId)
@@ -363,12 +366,16 @@ export class PageTranslationManager implements IPageTranslationManager {
   private async startObservationSession(version: number = ++this.sessionVersion): Promise<void> {
     this.cancelPendingNavigationRefresh()
     this.resetObservationSession()
+    this.abortTranslation()
 
     const walkId = crypto.randomUUID()
+    const controller = new AbortController()
+    const signal = controller.signal
     this.walkId = walkId
+    this.translationController = controller
     this.intersectionObserver = new IntersectionObserver(async (entries, observer) => {
       for (const entry of entries) {
-        if (!this.isPageTranslating || version !== this.sessionVersion) {
+        if (!this.isPageTranslating || version !== this.sessionVersion || signal.aborted) {
           observer.disconnect()
           return
         }
@@ -382,10 +389,10 @@ export class PageTranslationManager implements IPageTranslationManager {
                 return
               }
 
-              if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId)
+              if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId || signal.aborted)
                 return
 
-              void translateWalkedElement(entry.target, walkId, currentConfig)
+              void translateWalkedElement(entry.target, walkId, currentConfig, false, { signal })
             }
           }
           observer.unobserve(entry.target)
@@ -396,7 +403,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     this.addDontWalkIntoElements(document.body)
     await this.observerTopLevelParagraphs(document.body)
 
-    if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId) {
+    if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId || signal.aborted) {
       this.resetObservationSession()
       return
     }
@@ -421,6 +428,11 @@ export class PageTranslationManager implements IPageTranslationManager {
   private abortCleanup(): void {
     this.cleanupController?.abort()
     this.cleanupController = null
+  }
+
+  private abortTranslation(): void {
+    this.translationController?.abort()
+    this.translationController = null
   }
 
   private cancelPendingNavigationRefresh(): void {

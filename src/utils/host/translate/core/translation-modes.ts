@@ -27,13 +27,19 @@ export async function translateNodes(
   toggle: boolean = false,
   config: Config,
   forceBlockTranslation: boolean = false,
+  options?: {
+    signal?: AbortSignal
+  },
 ): Promise<void> {
+  if (options?.signal?.aborted)
+    return
+
   const translationMode = config.translate.mode
   if (translationMode === "translationOnly") {
-    await translateNodeTranslationOnlyMode(nodes, walkId, config, toggle)
+    await translateNodeTranslationOnlyMode(nodes, walkId, config, toggle, options)
   }
   else if (translationMode === "bilingual") {
-    await translateNodesBilingualMode(nodes, walkId, config, toggle, forceBlockTranslation)
+    await translateNodesBilingualMode(nodes, walkId, config, toggle, forceBlockTranslation, options)
   }
 }
 
@@ -43,7 +49,13 @@ export async function translateNodesBilingualMode(
   config: Config,
   toggle: boolean = false,
   forceBlockTranslation: boolean = false,
+  options?: {
+    signal?: AbortSignal
+  },
 ): Promise<void> {
+  if (options?.signal?.aborted)
+    return
+
   const transNodes = nodes.filter(node => isTransNode(node))
   if (transNodes.length === 0) {
     return
@@ -81,6 +93,9 @@ export async function translateNodesBilingualMode(
     if (await shouldFilterSmallParagraph(textContent, config))
       return
 
+    if (options?.signal?.aborted)
+      return
+
     const ownerDoc = getOwnerDocument(targetNode)
     const translatedWrapperNode = ownerDoc.createElement("span")
     translatedWrapperNode.className = `${NOTRANSLATE_CLASS} ${CONTENT_WRAPPER_CLASS}`
@@ -103,7 +118,12 @@ export async function translateNodesBilingualMode(
     }
     batchDOMOperation(insertOperation)
 
-    const realTranslatedText = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode)
+    const realTranslatedText = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
+
+    if (options?.signal?.aborted) {
+      batchDOMOperation(() => translatedWrapperNode.remove())
+      return
+    }
 
     const translatedText = realTranslatedText === textContent ? "" : realTranslatedText
 
@@ -135,7 +155,13 @@ export async function translateNodeTranslationOnlyMode(
   walkId: string,
   config: Config,
   toggle: boolean = false,
+  options?: {
+    signal?: AbortSignal
+  },
 ): Promise<void> {
+  if (options?.signal?.aborted)
+    return
+
   const isTransNodeAndNotTranslatedWrapper = (node: Node): node is TransNode => {
     if (isHTMLElement(node) && node.classList.contains(CONTENT_WRAPPER_CLASS))
       return false
@@ -250,6 +276,9 @@ export async function translateNodeTranslationOnlyMode(
     if (!textContent)
       return
 
+    if (options?.signal?.aborted)
+      return
+
     const ownerDoc = getOwnerDocument(targetNode)
     const translatedWrapperNode = ownerDoc.createElement("span")
     translatedWrapperNode.className = `${NOTRANSLATE_CLASS} ${CONTENT_WRAPPER_CLASS}`
@@ -273,7 +302,12 @@ export async function translateNodeTranslationOnlyMode(
     }
     batchDOMOperation(insertOperation)
 
-    const translatedText = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode)
+    const translatedText = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
+
+    if (options?.signal?.aborted) {
+      batchDOMOperation(() => translatedWrapperNode.remove())
+      return
+    }
 
     if (!translatedText) {
       // Keep the wrapper when translation failed so the injected error UI remains visible.
