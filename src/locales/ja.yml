@@ -35,7 +35,7 @@ popup:
     translationHub: 翻訳ハブ
     joinDiscord: Discordに参加
     joinWechat: WeChatグループに参加
-    starGithub: Githubでスター
+    starGithub: ソースを見る
     rateUs: レビューを書く
     ebook: サードパーティ電子書籍リーダー
     tutorial: 使い方ガイド
@@ -383,8 +383,6 @@ options:
     personalizedPrompts:
       title: 個人化プロンプト
       description: 異なるタイプのプロンプトをカスタマイズすることで、翻訳時にプロンプトタイプを自ら調整できます。プロンプトとは、ユーザーがLLMに送信するテキストを指します。
-      communityPrompts: コミュニティからプロンプトを取得・共有
-      communityPromptsUrl: https://github.com/mengxi-ream/read-frog/discussions/821
       addPrompt: プロンプトを追加
       default: デフォルト
       importSuccess: インポート成功

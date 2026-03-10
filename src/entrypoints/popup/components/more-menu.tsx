@@ -23,7 +23,7 @@ export function MoreMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" className="w-fit">
         <DropdownMenuItem
-          onClick={() => window.open("https://github.com/mengxi-ream/read-frog", "_blank", "noopener,noreferrer")}
+          onClick={() => window.open("https://github.com/endercat-alu/readfrog-local", "_blank", "noopener,noreferrer")}
           className="cursor-pointer"
         >
           <Icon icon="fa7-brands:github" className="size-4" strokeWidth={1.6} />

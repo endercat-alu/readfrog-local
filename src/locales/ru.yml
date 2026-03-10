@@ -35,7 +35,7 @@ popup:
     translationHub: Центр переводов
     joinDiscord: Присоединиться к Discord
     joinWechat: Присоединиться к группе WeChat
-    starGithub: Поставить звезду на Github
+    starGithub: Исходный код
     rateUs: Оценить нас
     ebook: Сторонняя читалка электронных книг
     tutorial: Руководство
@@ -383,8 +383,6 @@ options:
     personalizedPrompts:
       title: Персонализированные промпты
       description: Настройка различных типов промптов позволяет вам самостоятельно изменять тип промпта во время перевода. Промпт — это текст, который пользователь отправляет LLM.
-      communityPrompts: Получайте или делитесь промптами с сообществом
-      communityPromptsUrl: https://github.com/mengxi-ream/read-frog/discussions/821
       addPrompt: Добавить промпт
       default: По умолчанию
       importSuccess: Импорт успешен

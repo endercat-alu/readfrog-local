@@ -8,9 +8,6 @@ body:
     id: preflight
     attributes:
       label: Before you begin
-      description: |
-        Please confirm the following before submitting. For questions and quick help, join our Discord community.
-        Discord: https://discord.gg/ej45e3PezJ
       options:
         - label: I have searched existing issues to avoid duplicates
           required: true
@@ -43,7 +40,7 @@ body:
       multiple: true
       options:
         - Browser Extension
-        - Website
+        - Repository
         - Other
     validations:
       required: true

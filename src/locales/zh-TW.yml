@@ -35,7 +35,7 @@ popup:
     translationHub: 翻譯中心
     joinDiscord: 加入 Discord
     joinWechat: 加入微信群
-    starGithub: Github 加星
+    starGithub: 查看源码
     rateUs: 好評支持
     ebook: 第三方電子書閱讀器
     tutorial: 使用教程
@@ -383,8 +383,6 @@ options:
     personalizedPrompts:
       title: 個人化 Prompt
       description: 自訂不同類型的 Prompt，可以在翻譯時自行調整 Prompt 類型。Prompt 表示以用戶身份發送給 LLM 的文字。
-      communityPrompts: 獲取或分享社區 Prompt
-      communityPromptsUrl: https://github.com/mengxi-ream/read-frog/discussions/820
       addPrompt: 添加 Prompt
       default: 通用
       importSuccess: 導入成功

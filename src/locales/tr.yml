@@ -35,7 +35,7 @@ popup:
     translationHub: Çeviri Merkezi
     joinDiscord: Discord'a Katıl
     joinWechat: WeChat Grubuna Katıl
-    starGithub: Github'da Yıldız Ver
+    starGithub: Kaynak Kodu Gör
     rateUs: Bizi Değerlendirin
     ebook: Üçüncü Taraf E-kitap Okuyucu
     tutorial: Rehber
@@ -383,8 +383,6 @@ options:
     personalizedPrompts:
       title: Kişiselleştirilmiş Promptlar
       description: Farklı türde Promptları özelleştirmek, çeviri sırasında Prompt türünü kendiniz ayarlamanıza olanak tanır. Prompt, kullanıcının LLM'ye gönderdiği metni temsil eder.
-      communityPrompts: Topluluktan prompt al veya paylaş
-      communityPromptsUrl: https://github.com/mengxi-ream/read-frog/discussions/821
       addPrompt: Prompt Ekle
       default: Varsayılan
       importSuccess: İçe Aktarma Başarılı

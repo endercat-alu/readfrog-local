@@ -8,9 +8,6 @@ body:
     id: preflight
     attributes:
       label: Before you report
-      description: |
-        Please confirm the following before submitting. For questions and quick help, join our Discord community.
-        Discord: https://discord.gg/ej45e3PezJ
       options:
         - label: I have searched existing issues to avoid duplicates
           required: true
@@ -54,7 +51,7 @@ body:
       multiple: true
       options:
         - Browser Extension
-        - Website
+        - Repository
         - Other
     validations:
       required: true
@@ -73,8 +70,8 @@ body:
       placeholder: |
         - OS: [e.g. macOS 14.5]
         - Browser: [e.g. Chrome 126, Edge 125]
-        - Extension channel/version: [e.g. Chrome Web Store 1.2.3]
-        - Website: [e.g. https://readfrog.app, date/time observed]
+        - Extension build/version: [e.g. local build 1.2.3]
+        - Page URL: [e.g. https://example.com/article, date/time observed]
     validations:
       required: true
   - type: textarea

@@ -156,7 +156,7 @@ export const CUSTOM_DONT_WALK_INTO_ELEMENT_SELECTOR_MAP: Record<string, string[]
 
 export const CUSTOM_FORCE_BLOCK_TRANSLATION_SELECTOR_MAP: Record<string, string[]> = {
   "github.com": [
-    "task-lists", // https://github.com/mengxi-ream/read-frog/issues/867
+    "task-lists", // https://github.com/endercat-alu/readfrog-local/issues/867
   ],
   "engoo.com": [
     "#windowexercise-2 > div > div > div.css-ep7xq6 > div > div > div.css-19m2fbm *",

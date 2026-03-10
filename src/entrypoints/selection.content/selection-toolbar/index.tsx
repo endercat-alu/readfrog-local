@@ -132,8 +132,8 @@ export function SelectionToolbar() {
         const selection = window.getSelection()
         const selectedText = selection?.toString().trim() || ""
 
-        // https://github.com/mengxi-ream/read-frog/issues/547
-        // https://github.com/mengxi-ream/read-frog/pull/790
+        // https://github.com/endercat-alu/readfrog-local/issues/547
+        // https://github.com/endercat-alu/readfrog-local/pull/790
         if (!isInputOrTextarea && !selection?.containsNode(e.target as Node, true) && e.target instanceof HTMLButtonElement) {
           return
         }

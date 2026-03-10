@@ -35,7 +35,7 @@ popup:
     translationHub: Trung tâm Dịch thuật
     joinDiscord: Tham gia Discord
     joinWechat: Tham gia nhóm WeChat
-    starGithub: Đánh dấu sao trên Github
+    starGithub: Xem mã nguồn
     rateUs: Đánh giá chúng tôi
     ebook: Trình đọc sách điện tử bên thứ ba
     tutorial: Hướng dẫn
@@ -383,8 +383,6 @@ options:
     personalizedPrompts:
       title: Prompt cá nhân hóa
       description: Tùy chỉnh các loại Prompt khác nhau cho phép bạn tự điều chỉnh loại Prompt trong quá trình dịch. Prompt là văn bản mà người dùng gửi cho LLM.
-      communityPrompts: Nhận hoặc chia sẻ prompt từ cộng đồng
-      communityPromptsUrl: https://github.com/mengxi-ream/read-frog/discussions/821
       addPrompt: Thêm Prompt
       default: Mặc định
       importSuccess: Nhập thành công

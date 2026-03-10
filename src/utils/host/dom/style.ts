@@ -32,7 +32,7 @@ export function smashTruncationStyle(element: HTMLElement) {
       element.style.maxHeight = "unset"
     }
 
-    // fix this issue: https://github.com/mengxi-ream/read-frog/issues/222
+    // fix this issue: https://github.com/endercat-alu/readfrog-local/issues/222
     // if (computedStyle.overflow === 'hidden') {
     //   element.style.overflow = 'visible'
     // }

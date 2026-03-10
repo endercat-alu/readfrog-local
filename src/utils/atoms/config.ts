@@ -122,7 +122,7 @@ configAtom.onMount = (setAtom: (newValue: Config) => void) => {
 
   // Handle tab reactivation - inactive tabs may miss storage watch events,
   // so we reload from storage when the tab becomes visible again.
-  // See: https://github.com/mengxi-ream/read-frog/issues/435
+  // See: https://github.com/endercat-alu/readfrog-local/issues/435
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
       logger.info("configAtom onMount handleVisibilityChange when: ", new Date())
