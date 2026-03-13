@@ -1,4 +1,4 @@
-import { CONTENT_WRAPPER_CLASS, REACT_SHADOW_HOST_CLASS, TRANSLATION_MODE_ATTRIBUTE, WALKED_ATTRIBUTE } from "../../../constants/dom-labels"
+import { CONTENT_WRAPPER_CLASS, REACT_SHADOW_HOST_CLASS, TRANSLATION_ERROR_CONTAINER_CLASS, TRANSLATION_MODE_ATTRIBUTE, WALKED_ATTRIBUTE } from "../../../constants/dom-labels"
 import { removeReactShadowHost } from "../../../react-shadow-host/create-shadow-host"
 import { batchDOMOperation } from "../../dom/batch-dom"
 import { isHTMLElement } from "../../dom/filter"
@@ -10,6 +10,10 @@ const CLEANUP_TIME_SLICE_MS = 8
 interface CleanupOptions {
   walkId?: string
   signal?: AbortSignal
+}
+
+interface RemoveWrapperOptions {
+  restoreOriginalContent?: boolean
 }
 
 export function removeShadowHostInTranslatedWrapper(wrapper: HTMLElement): void {
@@ -30,12 +34,16 @@ export function removeShadowHostInTranslatedWrapper(wrapper: HTMLElement): void 
  * Remove translated wrapper and restore original content based on translation mode
  * @param wrapper - The translated wrapper element to remove
  */
-export function removeTranslatedWrapperWithRestore(wrapper: HTMLElement): void {
+export function removeTranslatedWrapperWithRestore(
+  wrapper: HTMLElement,
+  options: RemoveWrapperOptions = {},
+): void {
   removeShadowHostInTranslatedWrapper(wrapper)
+  const restoreOriginalContent = options.restoreOriginalContent ?? true
 
   const translationMode = wrapper.getAttribute(TRANSLATION_MODE_ATTRIBUTE)
 
-  if (translationMode === "translationOnly") {
+  if (translationMode === "translationOnly" && restoreOriginalContent) {
     // For translation-only mode, find nearest ancestor in originalContentMap and restore
     let currentNode = wrapper.parentNode
 
@@ -55,6 +63,10 @@ export function removeTranslatedWrapperWithRestore(wrapper: HTMLElement): void {
 
   // For bilingual mode or when no original content is found, just remove the wrapper
   batchDOMOperation(() => wrapper.remove())
+}
+
+export function shouldRestoreOriginalContentForWrapper(wrapper: HTMLElement): boolean {
+  return !wrapper.querySelector(`.${TRANSLATION_ERROR_CONTAINER_CLASS}`) && !wrapper.querySelector(".read-frog-spinner")
 }
 
 function shouldCleanupWrapper(node: HTMLElement, walkId?: string): boolean {

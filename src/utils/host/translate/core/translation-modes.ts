@@ -7,12 +7,12 @@ import {
   TRANSLATION_MODE_ATTRIBUTE,
   WALKED_ATTRIBUTE,
 } from "../../../constants/dom-labels"
-import { batchDOMOperation } from "../../dom/batch-dom"
+import { batchDOMOperation, flushBatchedOperations } from "../../dom/batch-dom"
 import { isBlockTransNode, isHTMLElement, isTextNode, isTransNode } from "../../dom/filter"
 import { unwrapDeepestOnlyHTMLChild } from "../../dom/find"
 import { getOwnerDocument } from "../../dom/node"
 import { extractTextContent } from "../../dom/traversal"
-import { removeTranslatedWrapperWithRestore } from "../dom/translation-cleanup"
+import { removeTranslatedWrapperWithRestore, shouldRestoreOriginalContentForWrapper } from "../dom/translation-cleanup"
 import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
 import { shouldFilterSmallParagraph } from "../filter-small-paragraph"
@@ -83,9 +83,9 @@ export async function translateNodesBilingualMode(
         return
       }
       else {
+        flushBatchedOperations()
         nodes.forEach(node => translatingNodes.delete(node))
-        void translateNodesBilingualMode(nodes, walkId, config, toggle)
-        return
+        return translateNodesBilingualMode(nodes, walkId, config, toggle)
       }
     }
 
@@ -228,20 +228,18 @@ export async function translateNodeTranslationOnlyMode(
 
     const finalTranslatedWrapper = existedTranslatedWrapperOutside ?? existedTranslatedWrapper
     if (finalTranslatedWrapper && isHTMLElement(finalTranslatedWrapper)) {
-      removeTranslatedWrapperWithRestore(finalTranslatedWrapper)
+      removeTranslatedWrapperWithRestore(finalTranslatedWrapper, {
+        restoreOriginalContent: shouldRestoreOriginalContentForWrapper(finalTranslatedWrapper),
+      })
       if (toggle) {
         return
       }
       else {
-        // In translationOnly mode, removeTranslatedWrapperWithRestore uses innerHTML to restore content,
-        // which destroys the original DOM nodes and creates new ones. The 'nodes' array still references
-        // the old detached nodes, and targetNode can't reference to the new dom added by innerHTML anymore.
-        // Therefore, by recursively calling translateNodeTranslationOnlyMode here with the
-        // same nodes array, we ensure the translation uses the newly created DOM elements since the
-        // function will re-query and find the correct parent and child nodes from the restored DOM.
+        // Flush the batched removal before retrying. Otherwise the old wrapper is still
+        // discoverable in this tick and we recurse into the same cleanup path again.
+        flushBatchedOperations()
         nodes.forEach(node => translatingNodes.delete(node))
-        void translateNodeTranslationOnlyMode(nodes, walkId, config, toggle)
-        return
+        return translateNodeTranslationOnlyMode(nodes, walkId, config, toggle)
       }
     }
 
