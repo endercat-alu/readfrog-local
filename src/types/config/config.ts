@@ -3,6 +3,7 @@ import { langCodeISO6393Schema, langLevel } from "@read-frog/definitions"
 import { z } from "zod"
 import { FEATURE_PROVIDER_DEFS } from "@/utils/constants/feature-providers"
 import { MIN_SIDE_CONTENT_WIDTH } from "@/utils/constants/side"
+import { glossaryConfigSchema } from "./glossary"
 import { isLLMProvider, NON_API_TRANSLATE_PROVIDERS_MAP, providersConfigSchema } from "./provider"
 import { selectionToolbarCustomFeaturesSchema } from "./selection-toolbar"
 import { videoSubtitlesSchema } from "./subtitles"
@@ -93,6 +94,7 @@ export const configSchema = z.object({
   contextMenu: contextMenuSchema,
   inputTranslation: inputTranslationSchema,
   videoSubtitles: videoSubtitlesSchema,
+  glossary: glossaryConfigSchema,
   siteControl: siteControlSchema,
 }).superRefine((data, ctx) => {
   const providerIdsSet = new Set(data.providersConfig.map(p => p.id))

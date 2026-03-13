@@ -5,6 +5,7 @@ import { i18n } from "#imports"
 import { APICallError } from "ai"
 import { getProviderConfigById } from "@/utils/config/helpers"
 import { getLocalConfig } from "@/utils/config/storage"
+import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { Sha256Hex } from "@/utils/hash"
 import { buildHashComponents } from "@/utils/host/translate/translate-text"
 import { sendMessage } from "@/utils/message"
@@ -44,18 +45,22 @@ async function translateSingleSubtitle(
   providerConfig: ProviderConfig,
   enableAIContentAware: boolean,
   videoContext: SubtitlesVideoContext,
+  glossaryEntries: Config["glossary"]["entries"],
 ): Promise<string> {
+  const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, glossaryEntries)
   const hashComponents = await buildHashComponents(
-    text,
+    preparedTranslation.text,
     providerConfig,
     { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
     enableAIContentAware,
     "document",
     { title: videoContext.videoTitle, textContent: videoContext.subtitlesTextContent },
+    preparedTranslation.glossaryPrompt,
   )
 
   return await sendMessage("enqueueSubtitlesTranslateRequest", {
-    text,
+    text: preparedTranslation.text,
+    glossaryPrompt: preparedTranslation.glossaryPrompt,
     langConfig,
     providerConfig,
     scheduleAt: Date.now(),
@@ -82,9 +87,10 @@ export async function translateSubtitles(
 
   const langConfig = config.language
   const enableAIContentAware = !!config.translate.enableAIContentAware
+  const glossaryEntries = config.glossary.entries
 
   const translationPromises = fragments.map(fragment =>
-    translateSingleSubtitle(fragment.text, langConfig, providerConfig, enableAIContentAware, videoContext),
+    translateSingleSubtitle(fragment.text, langConfig, providerConfig, enableAIContentAware, videoContext, glossaryEntries),
   )
 
   const results = await Promise.allSettled(translationPromises)

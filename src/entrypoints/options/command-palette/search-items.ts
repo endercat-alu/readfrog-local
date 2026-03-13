@@ -156,6 +156,15 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.translation.title",
   },
 
+  // Glossary page
+  {
+    sectionId: "glossary",
+    route: "/glossary",
+    titleKey: "options.glossary.title",
+    descriptionKey: "options.glossary.description",
+    pageKey: "options.glossary.title",
+  },
+
   // Floating Button page
   {
     sectionId: "floating-button-toggle",

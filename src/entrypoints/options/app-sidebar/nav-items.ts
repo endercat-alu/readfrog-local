@@ -4,6 +4,7 @@ import { ContextMenuPage } from "../pages/context-menu"
 import { CustomFeaturesPage } from "../pages/custom-features"
 import { FloatingButtonPage } from "../pages/floating-button"
 import { GeneralPage } from "../pages/general"
+import { GlossaryPage } from "../pages/glossary"
 import { InputTranslationPage } from "../pages/input-translation"
 import { SelectionToolbarPage } from "../pages/selection-toolbar"
 import { StatisticsPage } from "../pages/statistics"
@@ -16,6 +17,7 @@ export const ROUTE_CONFIG = [
   { path: "/api-providers", component: ApiProvidersPage },
   { path: "/custom-features", component: CustomFeaturesPage },
   { path: "/translation", component: TranslationPage },
+  { path: "/glossary", component: GlossaryPage },
   { path: "/video-subtitles", component: VideoSubtitlesPage },
   { path: "/floating-button", component: FloatingButtonPage },
   { path: "/selection-toolbar", component: SelectionToolbarPage },

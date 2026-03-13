@@ -10,6 +10,7 @@ import { isLLMProviderConfig } from "@/types/config/provider"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { featureProviderConfigAtom } from "@/utils/atoms/provider"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
+import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { translateTextForSelection } from "@/utils/host/translate/translate-variants"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
 import { resolveModelId } from "@/utils/providers/model"
@@ -53,6 +54,7 @@ export function TranslatePopover() {
   const [isTranslating, setIsTranslating] = useState(false)
   const [translatedText, setTranslatedText] = useState<string | undefined>(undefined)
   const translateProviderConfig = useAtomValue(featureProviderConfigAtom("selectionToolbar.translate"))
+  const glossary = useAtomValue(configFieldsAtomMap.glossary)
   const languageConfig = useAtomValue(configFieldsAtomMap.language)
   const selectionContent = useAtomValue(selectionContentAtom)
   const [isVisible, setIsVisible] = useAtom(isTranslatePopoverVisibleAtom)
@@ -100,6 +102,11 @@ export function TranslatePopover() {
         }
 
         if (isLLMProviderConfig(activeTranslateProviderConfig)) {
+          const preparedTranslation = prepareGlossaryTranslation(
+            cleanSelectionContent,
+            activeTranslateProviderConfig,
+            glossary.entries,
+          )
           const targetLangName = LANG_CODE_TO_EN_NAME[languageConfig.targetCode]
           const {
             id: providerId,
@@ -109,7 +116,9 @@ export function TranslatePopover() {
           } = activeTranslateProviderConfig
           const modelName = resolveModelId(activeTranslateProviderConfig.model)
           const providerOptions = getProviderOptionsWithOverride(modelName ?? "", provider, userProviderOptions)
-          const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, cleanSelectionContent)
+          const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, preparedTranslation.text, {
+            glossaryPrompt: preparedTranslation.glossaryPrompt,
+          })
 
           const abortController = new AbortController()
           cancelTranslation = () => abortController.abort()
@@ -180,6 +189,7 @@ export function TranslatePopover() {
   }, [
     isVisible,
     cleanSelectionContent,
+    glossary.entries,
     languageConfig.targetCode,
     translateProviderSignature,
   ])

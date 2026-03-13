@@ -1,5 +1,6 @@
 import type { LangCodeISO6393, LangLevel } from "@read-frog/definitions"
 import type { Config } from "@/types/config/config"
+import type { GlossaryEntry } from "@/types/config/glossary"
 import type { ProviderConfig } from "@/types/config/provider"
 import type { AIContentAwareMode } from "@/types/config/translate"
 import { i18n } from "#imports"
@@ -11,6 +12,7 @@ import { isAPIProviderConfig, isLLMProviderConfig } from "@/types/config/provide
 import { getProviderConfigById } from "@/utils/config/helpers"
 import { detectLanguage } from "@/utils/content/language"
 import { cleanText, removeDummyNodes } from "@/utils/content/utils"
+import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { findNearestAncestorBlockNodeFor } from "@/utils/host/dom/find"
 import { logger } from "@/utils/logger"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
@@ -278,6 +280,7 @@ export async function buildHashComponents(
   enableAIContentAware: boolean,
   aiContentAwareMode: AIContentAwareMode = "document",
   articleContext?: { title?: string, textContent?: string },
+  glossaryPrompt?: string,
 ): Promise<string[]> {
   const hashComponents = [
     text,
@@ -289,7 +292,7 @@ export async function buildHashComponents(
 
   if (isLLMProviderConfig(providerConfig)) {
     const targetLangName = LANG_CODE_TO_EN_NAME[partialLangConfig.targetCode]
-    const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, text, { isBatch: true })
+    const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, text, { isBatch: true, glossaryPrompt })
     hashComponents.push(systemPrompt, prompt)
     hashComponents.push(enableAIContentAware ? "enableAIContentAware=true" : "enableAIContentAware=false")
     hashComponents.push(`aiContentAwareMode:${aiContentAwareMode}`)
@@ -314,6 +317,7 @@ export interface TranslateTextOptions {
   text: string
   langConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393, level: LangLevel }
   providerConfig: ProviderConfig
+  glossaryEntries?: GlossaryEntry[]
   enableAIContentAware?: boolean
   aiContentAwareMode?: AIContentAwareMode
   extraHashTags?: string[]
@@ -328,16 +332,20 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
     text,
     langConfig,
     providerConfig,
+    glossaryEntries = [],
     enableAIContentAware = false,
     aiContentAwareMode = "viewport",
     extraHashTags = [],
   } = options
 
+  const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, glossaryEntries)
+  const requestText = preparedTranslation.text
+
   // Skip translation if text is already in target language
-  if (text.length >= MIN_LENGTH_FOR_LANG_DETECTION) {
-    const detectedLang = franc(text)
+  if (requestText.length >= MIN_LENGTH_FOR_LANG_DETECTION) {
+    const detectedLang = franc(requestText)
     if (detectedLang === langConfig.targetCode) {
-      logger.info(`translateTextCore: skipping translation because text is already in target language. text: ${text}`)
+      logger.info(`translateTextCore: skipping translation because text is already in target language. text: ${requestText}`)
       return ""
     }
   }
@@ -355,19 +363,21 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
   }
 
   const hashComponents = await buildHashComponents(
-    text,
+    requestText,
     providerConfig,
     { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
     enableAIContentAware,
     aiContentAwareMode,
     { title: articleTitle, textContent: articleTextContent },
+    preparedTranslation.glossaryPrompt,
   )
 
   // Add extra hash tags for cache differentiation
   hashComponents.push(...extraHashTags)
 
   return await sendMessage("enqueueTranslateRequest", {
-    text,
+    text: requestText,
+    glossaryPrompt: preparedTranslation.glossaryPrompt,
     langConfig,
     providerConfig,
     scheduleAt: Date.now(),

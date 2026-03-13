@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { getProviderConfigById } from "@/utils/config/helpers"
 import { PROVIDER_ITEMS } from "@/utils/constants/providers"
+import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { executeTranslate } from "@/utils/host/translate/execute-translate"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
 import { selectedProviderIdsAtom, translateRequestAtom, translationCardExpandedStateAtom } from "../atoms"
@@ -25,6 +26,7 @@ export function TranslationCard({ providerId, isExpanded, onExpandedChange }: Tr
   const { theme } = useTheme()
   const request = useAtomValue(translateRequestAtom)
   const language = useAtomValue(configFieldsAtomMap.language)
+  const glossary = useAtomValue(configFieldsAtomMap.glossary)
   const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
   const [selectedProviderIds, setSelectedProviderIds] = useAtom(selectedProviderIdsAtom)
   const setExpandedById = useSetAtom(translationCardExpandedStateAtom)
@@ -43,11 +45,14 @@ export function TranslationCard({ providerId, isExpanded, onExpandedChange }: Tr
         throw new Error("Provider not found")
 
       const myRequestId = ++requestIdRef.current
-      const result = await executeTranslate(req.inputText, {
+      const preparedTranslation = prepareGlossaryTranslation(req.inputText, provider, glossary.entries)
+      const result = await executeTranslate(preparedTranslation.text, {
         sourceCode: req.sourceLanguage,
         targetCode: req.targetLanguage,
         level: language.level,
-      }, provider, getTranslatePrompt)
+      }, provider, getTranslatePrompt, {
+        glossaryPrompt: preparedTranslation.glossaryPrompt,
+      })
 
       // Ignore stale responses - return undefined to silently discard
       if (requestIdRef.current !== myRequestId) {

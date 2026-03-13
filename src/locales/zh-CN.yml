@@ -511,6 +511,7 @@ options:
           targetLang: 目标语言
           title: 网页标题
           summary: 网页摘要（需启用 AI 智能上下文）
+          glossary: 词汇表命中项（参考译法与简介）
         save: 保存
         close: 取消
       deletePrompt:
@@ -637,6 +638,20 @@ options:
         description: 仅视口只抓当前可视内容和相关元数据。整页保持原来的全页抓取行为。
         viewport: 仅视口
         document: 整页内容
+  glossary:
+    title: 词汇表
+    description: 定义专有名词、参考翻译与简介。LLM 翻译会把命中项注入提示词，机器翻译会在发送前替换原文中的命中词。
+    add: 添加词条
+    delete: 删除词条
+    empty: 暂无词条
+    defaultTerm: 新术语
+    llmOnlyBadge: 仅 LLM
+    fields:
+      term: 专有名词
+      translation: 参考翻译
+      description: 简介
+      llmOnly: 仅在 LLM 翻译时生效
+      llmOnlyDescription: 开启后不会参与 Deeplx、微软翻译等机器翻译的原文替换
   tts:
     title: 文本转语音
     description: 使用 Edge TTS 语音参数来自定义朗读按钮。

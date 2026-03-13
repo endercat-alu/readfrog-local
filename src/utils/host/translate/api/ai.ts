@@ -17,7 +17,7 @@ export async function aiTranslate(
   targetLangName: string,
   providerConfig: LLMProviderConfig,
   promptResolver: PromptResolver,
-  options?: { isBatch?: boolean, content?: ArticleContent },
+  options?: { isBatch?: boolean, content?: ArticleContent, glossaryPrompt?: string },
 ) {
   const { id: providerId, model: providerModel, provider, providerOptions: userProviderOptions, temperature } = providerConfig
   const modelName = resolveModelId(providerModel)

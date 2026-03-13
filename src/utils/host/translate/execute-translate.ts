@@ -18,6 +18,7 @@ export async function executeTranslate(
     forceBackgroundFetch?: boolean
     isBatch?: boolean
     content?: ArticleContent
+    glossaryPrompt?: string
   },
 ) {
   const cleanText = text.replace(/\u200B/g, "").trim()

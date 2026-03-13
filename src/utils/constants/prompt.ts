@@ -1,4 +1,4 @@
-export const TOKENS = ["targetLang", "input", "title", "summary"] as const
+export const TOKENS = ["targetLang", "input", "title", "summary", "glossary"] as const
 
 /**
  * Separator used to distinguish multiple text segments in batch translation.
@@ -10,6 +10,7 @@ export const TARGET_LANG = TOKENS[0]
 export const INPUT = TOKENS[1]
 export const TITLE = TOKENS[2]
 export const SUMMARY = TOKENS[3]
+export const GLOSSARY = TOKENS[4]
 
 export const getTokenCellText = (token: string) => `{{${token}}}`
 
@@ -23,7 +24,11 @@ export const DEFAULT_TRANSLATE_SYSTEM_PROMPT = `You are a professional ${getToke
 
 ## Document Metadata for Context Awareness
 Title: ${getTokenCellText(TITLE)}
-Summary: ${getTokenCellText(SUMMARY)}`
+Summary: ${getTokenCellText(SUMMARY)}
+
+## Glossary References
+Use the following glossary references when applicable:
+${getTokenCellText(GLOSSARY)}`
 
 export const DEFAULT_TRANSLATE_PROMPT = `Translate to ${getTokenCellText(TARGET_LANG)}:
 

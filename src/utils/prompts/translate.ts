@@ -1,11 +1,12 @@
 import type { ArticleContent } from "@/types/content"
 import { getLocalConfig } from "@/utils/config/storage"
 import { DEFAULT_CONFIG } from "../constants/config"
-import { DEFAULT_BATCH_TRANSLATE_PROMPT, DEFAULT_TRANSLATE_PROMPT, DEFAULT_TRANSLATE_SYSTEM_PROMPT, getTokenCellText, INPUT, SUMMARY, TARGET_LANG, TITLE } from "../constants/prompt"
+import { DEFAULT_BATCH_TRANSLATE_PROMPT, DEFAULT_TRANSLATE_PROMPT, DEFAULT_TRANSLATE_SYSTEM_PROMPT, getTokenCellText, GLOSSARY, INPUT, SUMMARY, TARGET_LANG, TITLE } from "../constants/prompt"
 
 export interface TranslatePromptOptions {
   isBatch?: boolean
   content?: ArticleContent
+  glossaryPrompt?: string
 }
 
 export interface TranslatePromptResult {
@@ -48,6 +49,7 @@ ${DEFAULT_BATCH_TRANSLATE_PROMPT}`
   // Build title and summary replacement values
   const title = options?.content?.title || "No title available"
   const summary = options?.content?.summary || "No summary available"
+  const glossaryPrompt = options?.glossaryPrompt || "No glossary references."
 
   // Replace tokens in both prompts
   const replaceTokens = (text: string) =>
@@ -56,6 +58,7 @@ ${DEFAULT_BATCH_TRANSLATE_PROMPT}`
       .replaceAll(getTokenCellText(INPUT), input)
       .replaceAll(getTokenCellText(TITLE), title)
       .replaceAll(getTokenCellText(SUMMARY), summary)
+      .replaceAll(getTokenCellText(GLOSSARY), glossaryPrompt)
 
   return {
     systemPrompt: replaceTokens(systemPrompt),

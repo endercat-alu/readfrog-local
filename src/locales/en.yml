@@ -511,6 +511,7 @@ options:
           targetLang: Target language
           title: Webpage title
           summary: Webpage summary (requires AI Smart Context)
+          glossary: Matched glossary references with preferred translations and descriptions
         save: Save Changes
         close: Cancel
       deletePrompt:
@@ -637,6 +638,20 @@ options:
         description: Viewport only captures visible content and related metadata. Document keeps the previous full-page capture behavior.
         viewport: Viewport Only
         document: Entire Document
+  glossary:
+    title: Glossary
+    description: Define proper nouns, preferred translations, and descriptions. LLM translation injects matches into the prompt, while machine translation replaces matched terms before sending.
+    add: Add Entry
+    delete: Delete Entry
+    empty: No glossary entries yet
+    defaultTerm: New Term
+    llmOnlyBadge: LLM Only
+    fields:
+      term: Proper Noun
+      translation: Preferred Translation
+      description: Description
+      llmOnly: Apply only to LLM translation
+      llmOnlyDescription: When enabled, Deeplx, Microsoft Translator, and other machine translation services will not replace the source text with this entry
   tts:
     title: Text to Speech
     description: Use Edge TTS voice settings for the Speak button.
