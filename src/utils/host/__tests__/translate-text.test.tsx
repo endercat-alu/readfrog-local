@@ -103,5 +103,24 @@ describe("translate-text", () => {
 
       expect(result).toBe("测试结果")
     })
+
+    it("should route Kagi translation through background messaging", async () => {
+      mockSendMessage.mockResolvedValue("  你好，Kagi  ")
+
+      const result = await executeTranslate("hello", langConfig, {
+        id: "kagi-default",
+        enabled: true,
+        name: "Kagi Translate",
+        provider: "kagi",
+        baseURL: "https://translate.kagi.com",
+      }, getTranslatePrompt)
+
+      expect(result).toBe("你好，Kagi")
+      expect(mockSendMessage).toHaveBeenCalledWith("kagiTranslate", expect.objectContaining({
+        sourceText: "hello",
+        fromLang: "en",
+        toLang: "zh",
+      }))
+    })
   })
 })

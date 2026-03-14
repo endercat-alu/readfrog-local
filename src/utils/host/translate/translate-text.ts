@@ -409,7 +409,7 @@ export function validateTranslationConfigAndToast(
   }
 
   // check if the API key is configured
-  if (isAPIProviderConfig(providerConfig) && !providerConfig.apiKey?.trim() && !["deeplx", "ollama"].includes(providerConfig.provider)) {
+  if (isAPIProviderConfig(providerConfig) && !providerConfig.apiKey?.trim() && !["deeplx", "ollama", "kagi"].includes(providerConfig.provider)) {
     toast.error(i18n.t("noAPIKeyConfig.warning"))
     logger.info("validateTranslationConfig: returning false (no API key)")
     return false

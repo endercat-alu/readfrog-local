@@ -14,7 +14,7 @@ export const APIKeyField = withForm({
     const providerConfig = useStore(form.store, state => state.values)
 
     const providerType = providerConfig.provider
-    if (providerType === "ollama") {
+    if (providerType === "ollama" || providerType === "kagi") {
       return <></>
     }
 

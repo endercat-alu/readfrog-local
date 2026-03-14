@@ -149,6 +149,11 @@ export const PROVIDER_ITEMS: Record<AllProviderTypes, { logo: (theme: Theme) => 
       name: "DeepLX",
       website: "https://deeplx.owo.network/",
     },
+    "kagi": {
+      logo: () => customProviderLogo,
+      name: "Kagi Translate",
+      website: "https://translate.kagi.com",
+    },
     "siliconflow": {
       logo: getLobeIconsCDNUrlFn("siliconcloud-color"),
       name: "SiliconFlow",
@@ -367,6 +372,19 @@ export const DEFAULT_PROVIDER_CONFIG = {
     provider: "deeplx",
     baseURL: "https://api.deeplx.org",
   },
+  "kagi": {
+    id: "kagi-default",
+    name: PROVIDER_ITEMS.kagi.name,
+    description: "Kagi Translate with automatic session detection",
+    enabled: true,
+    provider: "kagi",
+    baseURL: "https://translate.kagi.com",
+    providerOptions: {
+      model: "standard",
+      stream: false,
+      extensionContext: "overlay",
+    },
+  },
   "bedrock": {
     id: "bedrock-default",
     name: PROVIDER_ITEMS.bedrock.name,
@@ -501,6 +519,7 @@ export const DEFAULT_PROVIDER_CONFIG_LIST: ProvidersConfig = [
   DEFAULT_PROVIDER_CONFIG.google,
   // DEFAULT_PROVIDER_CONFIG.openaiCompatible,
   DEFAULT_PROVIDER_CONFIG.deeplx,
+  DEFAULT_PROVIDER_CONFIG.kagi,
   // DEFAULT_PROVIDER_CONFIG.anthropic,
   // DEFAULT_PROVIDER_CONFIG.xai,
   // DEFAULT_PROVIDER_CONFIG.bedrock,

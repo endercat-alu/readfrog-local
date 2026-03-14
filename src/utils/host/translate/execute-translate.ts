@@ -7,6 +7,7 @@ import { isLLMProviderConfig, isNonAPIProvider, isPureAPIProvider } from "@/type
 import { aiTranslate } from "./api/ai"
 import { deeplxTranslate } from "./api/deeplx"
 import { googleTranslate } from "./api/google"
+import { kagiTranslate } from "./api/kagi"
 import { microsoftTranslate } from "./api/microsoft"
 
 export async function executeTranslate(
@@ -17,6 +18,7 @@ export async function executeTranslate(
   options?: {
     forceBackgroundFetch?: boolean
     isBatch?: boolean
+    runInBackground?: boolean
     content?: ArticleContent
     glossaryPrompt?: string
   },
@@ -50,6 +52,9 @@ export async function executeTranslate(
     }
     if (provider === "deeplx") {
       translatedText = await deeplxTranslate(text, sourceLang, targetLang, providerConfig, options)
+    }
+    else if (provider === "kagi") {
+      translatedText = await kagiTranslate(text, sourceLang, targetLang, providerConfig, options)
     }
   }
   else if (isLLMProviderConfig(providerConfig)) {

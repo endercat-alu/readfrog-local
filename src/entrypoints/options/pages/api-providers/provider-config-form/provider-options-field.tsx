@@ -28,6 +28,7 @@ export const ProviderOptionsField = withForm({
   render: function Render({ form }) {
     const providerConfig = useStore(form.store, state => state.values)
     const isLLMProvider = isLLMProviderConfig(providerConfig)
+    const isKagiProvider = providerConfig.provider === "kagi"
 
     const toJson = (options: APIProviderConfig["providerOptions"]) =>
       options ? JSON.stringify(options, null, 2) : ""
@@ -76,13 +77,24 @@ export const ProviderOptionsField = withForm({
     }, [isLLMProvider, translateModel, providerConfig.provider])
 
     const placeholderText = useMemo(() => {
+      if (isKagiProvider) {
+        return JSON.stringify({
+          manualSessionToken: "",
+          model: "standard",
+          stream: false,
+          extensionContext: "overlay",
+          preserveFormatting: true,
+          style: "natural",
+          formality: "default",
+        }, null, 2)
+      }
       if (Object.keys(defaultOptions).length === 0) {
         return "{\n  \n}"
       }
       return JSON.stringify(defaultOptions, null, 2)
-    }, [defaultOptions])
+    }, [defaultOptions, isKagiProvider])
 
-    if (!isLLMProvider) {
+    if (!isLLMProvider && !isKagiProvider) {
       return null
     }
 
@@ -94,16 +106,22 @@ export const ProviderOptionsField = withForm({
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-1.5">
               <span>{i18n.t("options.apiProviders.form.providerOptions")}</span>
-              <HelpTooltip>{i18n.t("options.apiProviders.form.providerOptionsHint")}</HelpTooltip>
+              <HelpTooltip>
+                {isKagiProvider
+                  ? "Supported keys: manualSessionToken, model, stream, extensionContext, addresseeGender, speakerGender, formality, style, context, preserveFormatting, headers."
+                  : i18n.t("options.apiProviders.form.providerOptionsHint")}
+              </HelpTooltip>
             </div>
-            <a
-              href="https://ai-sdk.dev/providers/ai-sdk-providers"
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-link hover:opacity-90"
-            >
-              {i18n.t("options.apiProviders.form.providerOptionsDocsLink")}
-            </a>
+            {!isKagiProvider && (
+              <a
+                href="https://ai-sdk.dev/providers/ai-sdk-providers"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-link hover:opacity-90"
+              >
+                {i18n.t("options.apiProviders.form.providerOptionsDocsLink")}
+              </a>
+            )}
           </div>
         </FieldLabel>
         <JSONCodeEditor

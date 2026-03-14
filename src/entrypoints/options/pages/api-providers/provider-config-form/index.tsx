@@ -60,6 +60,7 @@ export function ProviderConfigForm() {
   const providerType = useStore(form.store, state => state.values.provider)
   const isTranslateProviderType = isTranslateProvider(providerType)
   const isLLM = isLLMProvider(providerType)
+  const showProviderOptions = isLLM || providerType === "kagi"
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
@@ -151,9 +152,11 @@ export function ProviderConfigForm() {
             <TranslateModelSelector form={form} />
           )}
           <FeatureProviderSection form={form} />
-          {isLLM && (
+          {showProviderOptions && (
             <AdvancedOptionsSection>
-              <TemperatureField form={form} />
+              {isLLM && (
+                <TemperatureField form={form} />
+              )}
               <ProviderOptionsField form={form} />
             </AdvancedOptionsSection>
           )}

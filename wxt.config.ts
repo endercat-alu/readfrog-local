@@ -25,6 +25,7 @@ export default defineConfig({
     }),
     permissions: [
       "storage",
+      "cookies",
       "tabs",
       "alarms",
       "contextMenus",

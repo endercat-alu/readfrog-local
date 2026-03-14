@@ -128,6 +128,7 @@ async function createTranslationQueues(config: TranslationQueueSetupConfig) {
         await putBatchRequestRecord({ originalRequestCount: dataList.length, providerConfig })
         const result = await executeTranslate(batchText, langConfig, providerConfig, promptResolver, {
           isBatch: true,
+          runInBackground: true,
           content,
           glossaryPrompt,
         })
@@ -140,7 +141,7 @@ async function createTranslationQueues(config: TranslationQueueSetupConfig) {
       const { text, langConfig, providerConfig, hash, scheduleAt, content, glossaryPrompt } = data
       const thunk = async () => {
         await putBatchRequestRecord({ originalRequestCount: 1, providerConfig })
-        return executeTranslate(text, langConfig, providerConfig, promptResolver, { content, glossaryPrompt })
+        return executeTranslate(text, langConfig, providerConfig, promptResolver, { content, glossaryPrompt, runInBackground: true })
       }
       return requestQueue.enqueue(thunk, scheduleAt, hash)
     },
@@ -195,7 +196,7 @@ export async function setUpWebPageTranslationQueue() {
     }
     else {
       // Create thunk based on type and params
-      const thunk = () => executeTranslate(text, langConfig, providerConfig, getTranslatePrompt, { glossaryPrompt })
+      const thunk = () => executeTranslate(text, langConfig, providerConfig, getTranslatePrompt, { glossaryPrompt, runInBackground: true })
       result = await requestQueue.enqueue(thunk, scheduleAt, hash)
     }
 
@@ -260,7 +261,7 @@ export async function setUpSubtitlesTranslationQueue() {
       result = await batchQueue.enqueue(data)
     }
     else {
-      const thunk = () => executeTranslate(text, langConfig, providerConfig, getSubtitlesTranslatePrompt, { glossaryPrompt })
+      const thunk = () => executeTranslate(text, langConfig, providerConfig, getSubtitlesTranslatePrompt, { glossaryPrompt, runInBackground: true })
       result = await requestQueue.enqueue(thunk, scheduleAt, hash)
     }
 

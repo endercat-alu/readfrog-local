@@ -12,6 +12,7 @@ import type {
   EdgeTTSSynthesizeWireResponse,
 } from "@/types/edge-tts"
 import type { ProxyRequest, ProxyResponse } from "@/types/proxy-fetch"
+import type { PureAPIProviderConfig } from "@/types/config/provider"
 import type {
   TTSOffscreenStopRequest,
   TTSPlaybackStartRequest,
@@ -55,6 +56,15 @@ interface ProtocolMap {
   setSubtitlesBatchQueueConfig: (data: Partial<BatchQueueConfig>) => void
   // network proxy
   backgroundFetch: (data: ProxyRequest) => Promise<ProxyResponse>
+  kagiTranslate: (data: {
+    sourceText: string
+    fromLang: string
+    toLang: string
+    providerConfig: PureAPIProviderConfig
+    options?: {
+      isBatch?: boolean
+    }
+  }) => Promise<string>
   // cache management
   clearAllTranslationRelatedCache: () => Promise<void>
   clearAiSegmentationCache: () => Promise<void>
