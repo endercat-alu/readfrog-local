@@ -44,7 +44,7 @@ interface IPageTranslationManager {
 export class PageTranslationManager implements IPageTranslationManager {
   private static readonly MAX_DURATION = 500
   private static readonly MOVE_THRESHOLD = 30 * 30
-  private static readonly NAVIGATION_SETTLE_DELAY = 350
+  private static readonly NAVIGATION_CONTENT_SETTLE_DELAY = 120
   private static readonly MUTATION_SCAN_BATCH_DELAY = 16
   private static readonly DEFAULT_INTERSECTION_OPTIONS: SimpleIntersectionOptions = {
     root: null,
@@ -59,6 +59,8 @@ export class PageTranslationManager implements IPageTranslationManager {
   private intersectionOptions: IntersectionObserverInit
   private dontWalkIntoElementsCache = new WeakSet<HTMLElement>()
   private navigationTimer: number | null = null
+  private navigationMutationObserver: MutationObserver | null = null
+  private pendingNavigationWalkId: string | null = null
   private sessionVersion = 0
   private cleanupController: AbortController | null = null
   private translationController: AbortController | null = null
@@ -130,11 +132,12 @@ export class PageTranslationManager implements IPageTranslationManager {
     })
 
     this.isPageTranslating = false
-    const walkId = this.walkId
+    const walkId = this.walkId ?? this.pendingNavigationWalkId
     this.cancelPendingNavigationRefresh()
     this.abortTranslation()
     this.abortCleanup()
     this.resetObservationSession()
+    this.pendingNavigationWalkId = null
     this.scheduleCleanup(walkId)
   }
 
@@ -144,19 +147,13 @@ export class PageTranslationManager implements IPageTranslationManager {
 
     const walkId = this.walkId
     const currentVersion = ++this.sessionVersion
+    this.pendingNavigationWalkId = walkId
 
     this.cancelPendingNavigationRefresh()
     this.abortTranslation()
     this.abortCleanup()
     this.resetObservationSession()
-    this.scheduleCleanup(walkId)
-
-    this.navigationTimer = window.setTimeout(() => {
-      if (!this.isPageTranslating || currentVersion !== this.sessionVersion)
-        return
-
-      void this.startObservationSession(currentVersion)
-    }, PageTranslationManager.NAVIGATION_SETTLE_DELAY)
+    this.waitForNavigationContent(currentVersion, walkId)
   }
 
   registerPageTranslationTriggers(): () => void {
@@ -368,6 +365,70 @@ export class PageTranslationManager implements IPageTranslationManager {
     }
   }
 
+  private waitForNavigationContent(version: number, walkId: string | null): void {
+    const root = document.body
+    if (!root) {
+      this.pendingNavigationWalkId = null
+      return
+    }
+
+    const scheduleResume = () => {
+      if (this.navigationTimer !== null) {
+        window.clearTimeout(this.navigationTimer)
+      }
+
+      this.navigationTimer = window.setTimeout(() => {
+        this.navigationTimer = null
+        this.navigationMutationObserver?.disconnect()
+        this.navigationMutationObserver = null
+        void this.resumeAfterNavigation(version, walkId)
+      }, PageTranslationManager.NAVIGATION_CONTENT_SETTLE_DELAY)
+    }
+
+    this.navigationMutationObserver = new MutationObserver((records) => {
+      if (!this.isPageTranslating || version !== this.sessionVersion) {
+        this.cancelPendingNavigationRefresh()
+        return
+      }
+
+      if (records.some(record => this.isMeaningfulNavigationMutation(record))) {
+        scheduleResume()
+      }
+    })
+
+    this.navigationMutationObserver.observe(root, {
+      childList: true,
+      subtree: true,
+    })
+  }
+
+  private isMeaningfulNavigationMutation(record: MutationRecord): boolean {
+    if (record.type !== "childList") {
+      return false
+    }
+
+    if (record.removedNodes.length > 0 && !record.target.parentElement?.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
+      return true
+    }
+
+    return false
+  }
+
+  private async resumeAfterNavigation(version: number, walkId: string | null): Promise<void> {
+    if (!this.isPageTranslating || version !== this.sessionVersion) {
+      return
+    }
+
+    await this.cleanupWalk(walkId)
+
+    if (!this.isPageTranslating || version !== this.sessionVersion) {
+      return
+    }
+
+    this.pendingNavigationWalkId = null
+    await this.startObservationSession(version)
+  }
+
   private async startObservationSession(version: number = ++this.sessionVersion): Promise<void> {
     this.cancelPendingNavigationRefresh()
     this.resetObservationSession()
@@ -421,10 +482,10 @@ export class PageTranslationManager implements IPageTranslationManager {
     this.observeMutationRoot(document.body)
   }
 
-  private scheduleCleanup(walkId: string | null): void {
+  private async cleanupWalk(walkId: string | null): Promise<void> {
     const controller = new AbortController()
     this.cleanupController = controller
-    void removeAllTranslatedWrapperNodes(document, {
+    await removeAllTranslatedWrapperNodes(document, {
       walkId: walkId ?? undefined,
       signal: controller.signal,
     }).finally(() => {
@@ -433,6 +494,10 @@ export class PageTranslationManager implements IPageTranslationManager {
 
       this.cleanupController = null
     })
+  }
+
+  private scheduleCleanup(walkId: string | null): void {
+    void this.cleanupWalk(walkId)
   }
 
   private abortCleanup(): void {
@@ -449,6 +514,11 @@ export class PageTranslationManager implements IPageTranslationManager {
     if (this.navigationTimer !== null) {
       window.clearTimeout(this.navigationTimer)
       this.navigationTimer = null
+    }
+
+    if (this.navigationMutationObserver) {
+      this.navigationMutationObserver.disconnect()
+      this.navigationMutationObserver = null
     }
   }
 

@@ -207,7 +207,8 @@ export default defineContentScript({
 
     // Only the top frame should detect and set language to avoid race conditions from iframes
     if (window === window.top) {
-      if (!shouldProcessAutoTranslationForUrl(window.location.href))
+      const shouldProcessAutoTranslation = shouldProcessAutoTranslationForUrl(window.location.href)
+      if (!shouldProcessAutoTranslation && !translationEnabled)
         return
 
       const { detectedCodeOrUnd } = await getDocumentInfo()
@@ -215,7 +216,9 @@ export default defineContentScript({
       await storage.setItem<LangCodeISO6393>(`local:${DETECTED_CODE_STORAGE_KEY}`, initialDetectedCode)
 
       // Check if auto-translation should be enabled for initial page load
-      void sendMessage("checkAndAskAutoPageTranslation", { url: window.location.href, detectedCodeOrUnd })
+      if (!translationEnabled && shouldProcessAutoTranslation) {
+        void sendMessage("checkAndAskAutoPageTranslation", { url: window.location.href, detectedCodeOrUnd })
+      }
     }
   },
 })

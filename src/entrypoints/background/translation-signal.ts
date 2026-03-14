@@ -80,13 +80,4 @@ export function translationMessage() {
   browser.tabs.onRemoved.addListener(async (tabId) => {
     await storage.removeItem(getTranslationStateKey(tabId))
   })
-
-  // Clear translation state when navigating to a new page in the same tab
-  browser.webNavigation.onCommitted.addListener(async (details) => {
-    // Only handle main frame navigations, not iframes
-    if (details.frameId !== 0)
-      return
-
-    await storage.removeItem(getTranslationStateKey(details.tabId))
-  })
 }
