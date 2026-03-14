@@ -7,6 +7,10 @@ dataTypes:
 contextMenu:
   translate: 翻译
   showOriginal: 显示原文
+  selectionTranslate: 划词翻译
+  selectionVocabularyInsight: 词汇解析
+  translateSelectionInHub: 翻译选中文本
+  openOptions: 打开设置
 popup:
   theme: 主题
   autoLang: 自动检测
@@ -249,6 +253,20 @@ options:
       globalToggle:
         title: 启用悬浮按钮
         description: 在网页上显示悬浮按钮，快速访问陪读蛙功能
+      appearance:
+        title: 外观和交互
+        description: 调整悬浮按钮的停靠位置、展开方式和可见控件
+        side: 停靠侧边
+        sideRight: 右侧
+        sideLeft: 左侧
+        expandMode: 展开方式
+        expandOnHover: 悬停展开
+        alwaysExpanded: 始终展开
+        showQuickTranslateButton: 显示快速翻译按钮
+        showSettingsButton: 显示设置按钮
+        showCloseButton: 显示关闭菜单按钮
+        idleOpacity: 空闲透明度
+        scale: 缩放倍率
       closeMenu:
         disableForSite: 禁用此网站
         disableGlobally: 全局禁用
@@ -266,6 +284,18 @@ options:
       globalToggle:
         title: 启用选择工具栏
         description: 在网页上选择文本时显示工具栏，快速翻译和词汇解析
+      appearance:
+        title: 外观和按钮
+        description: 调整选择工具栏的按钮顺序、尺寸和最大宽度
+        showCloseButton: 显示关闭菜单按钮
+        buttonSize: 按钮尺寸
+        maxWidth: 最大宽度
+        actionOrder: 按钮顺序和启用状态
+        actions:
+          vocabularyInsight: 词汇解析
+          translate: 划词翻译
+          speak: 朗读
+          customFeatures: 自定义 AI 功能
       closeMenu:
         disableForSite: 禁用此网站
         disableGlobally: 全局禁用
@@ -465,6 +495,24 @@ options:
       translate:
         title: 启用右键翻译
         description: 在浏览器右键菜单中添加翻译选项，快速翻译页面
+      contexts:
+        title: 上下文菜单
+        description: 为页面、选中文本、链接、图片和输入框分别配置菜单项，并控制是否折叠
+        contextDescription: 单独控制此位置显示的菜单内容
+        collapsed: 折叠到 Read Frog 子菜单
+        items: 菜单项
+        targets:
+          page: 页面空白处
+          selection: 选中文本
+          link: 链接
+          image: 图片
+          editable: 输入框
+        actions:
+          selectionTranslate: 划词翻译
+          selectionVocabularyInsight: 词汇解析
+          togglePageTranslation: 切换页面翻译
+          translateSelectionInHub: 翻译选中文本
+          openOptions: 打开设置
   translation:
     title: 翻译
     requestQueueConfig:

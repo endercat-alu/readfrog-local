@@ -1,6 +1,7 @@
 import type { Config } from "@/types/config/config"
 import type { SelectionToolbarCustomFeature } from "@/types/config/selection-toolbar"
 import type { AIContentAwareMode, PageTranslateRange } from "@/types/config/translate"
+import type { ContextMenuItem, SelectionToolbarAction } from "@/types/config/overlay-tools"
 import { CUSTOM_FEATURE_TEMPLATES } from "./custom-feature-templates"
 import { DEFAULT_TRANSLATE_PROMPTS_CONFIG } from "./prompt"
 import { DEFAULT_PROVIDER_CONFIG_LIST } from "./providers"
@@ -17,9 +18,28 @@ export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 export const THEME_STORAGE_KEY = "theme"
 export const DETECTED_CODE_STORAGE_KEY = "detectedCode"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 62
+export const CONFIG_SCHEMA_VERSION = 63
 
 export const DEFAULT_FLOATING_BUTTON_POSITION = 0.66
+export const DEFAULT_SELECTION_TOOLBAR_BUTTON_ORDER: SelectionToolbarAction[] = [
+  "vocabularyInsight",
+  "translate",
+  "speak",
+  "customFeatures",
+]
+export const DEFAULT_CONTEXT_MENU_PAGE_ITEMS: ContextMenuItem[] = [
+  "togglePageTranslation",
+  "openOptions",
+]
+export const DEFAULT_CONTEXT_MENU_SELECTION_ITEMS: ContextMenuItem[] = [
+  "selectionTranslate",
+  "selectionVocabularyInsight",
+  "openOptions",
+]
+export const DEFAULT_CONTEXT_MENU_COMMON_ITEMS: ContextMenuItem[] = [
+  "togglePageTranslation",
+  "openOptions",
+]
 
 function createDefaultDictionaryFeature(): SelectionToolbarCustomFeature | null {
   const template = CUSTOM_FEATURE_TEMPLATES.find(t => t.id === "dictionary")
@@ -98,6 +118,15 @@ export const DEFAULT_CONFIG: Config = {
     position: DEFAULT_FLOATING_BUTTON_POSITION,
     disabledFloatingButtonPatterns: [],
     clickAction: "translate",
+    appearance: {
+      side: "right",
+      expandMode: "hover",
+      showQuickTranslateButton: true,
+      showSettingsButton: true,
+      showCloseButton: true,
+      idleOpacity: 0.6,
+      scale: 1,
+    },
   },
   selectionToolbar: {
     enabled: true,
@@ -111,6 +140,12 @@ export const DEFAULT_CONFIG: Config = {
       },
     },
     customFeatures: defaultDictionaryFeature ? [defaultDictionaryFeature] : [],
+    appearance: {
+      buttonOrder: DEFAULT_SELECTION_TOOLBAR_BUTTON_ORDER,
+      showCloseButton: true,
+      buttonSize: 24,
+      maxWidth: 420,
+    },
   },
   sideContent: {
     width: DEFAULT_SIDE_CONTENT_WIDTH,
@@ -120,6 +155,33 @@ export const DEFAULT_CONFIG: Config = {
   },
   contextMenu: {
     enabled: true,
+    contexts: {
+      page: {
+        enabled: true,
+        collapsed: false,
+        items: DEFAULT_CONTEXT_MENU_PAGE_ITEMS,
+      },
+      selection: {
+        enabled: true,
+        collapsed: true,
+        items: DEFAULT_CONTEXT_MENU_SELECTION_ITEMS,
+      },
+      link: {
+        enabled: false,
+        collapsed: true,
+        items: DEFAULT_CONTEXT_MENU_COMMON_ITEMS,
+      },
+      image: {
+        enabled: false,
+        collapsed: true,
+        items: DEFAULT_CONTEXT_MENU_COMMON_ITEMS,
+      },
+      editable: {
+        enabled: false,
+        collapsed: true,
+        items: DEFAULT_CONTEXT_MENU_COMMON_ITEMS,
+      },
+    },
   },
   inputTranslation: {
     enabled: true,

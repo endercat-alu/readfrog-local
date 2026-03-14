@@ -7,6 +7,10 @@ dataTypes:
 contextMenu:
   translate: Translate
   showOriginal: Show Original
+  selectionTranslate: Selection Translation
+  selectionVocabularyInsight: Vocabulary Insight
+  translateSelectionInHub: Translate Selection
+  openOptions: Open Options
 popup:
   theme: Theme
   autoLang: Auto
@@ -249,6 +253,20 @@ options:
       globalToggle:
         title: Enable Floating Button
         description: Display the floating button on web pages for quick access to Read Frog features
+      appearance:
+        title: Appearance and Interaction
+        description: Adjust dock side, expansion mode, and visible controls for the floating button
+        side: Dock Side
+        sideRight: Right
+        sideLeft: Left
+        expandMode: Expand Mode
+        expandOnHover: Expand on Hover
+        alwaysExpanded: Always Expanded
+        showQuickTranslateButton: Show quick translate button
+        showSettingsButton: Show settings button
+        showCloseButton: Show close menu button
+        idleOpacity: Idle Opacity
+        scale: Scale
       closeMenu:
         disableForSite: Disable for this site
         disableGlobally: Disable globally
@@ -266,6 +284,18 @@ options:
       globalToggle:
         title: Enable Selection Toolbar
         description: Display the toolbar when selecting text on web pages for quick translation and vocabulary insights
+      appearance:
+        title: Appearance and Buttons
+        description: Adjust button order, size, and max width for the selection toolbar
+        showCloseButton: Show close menu button
+        buttonSize: Button Size
+        maxWidth: Max Width
+        actionOrder: Button Order and Enabled State
+        actions:
+          vocabularyInsight: Vocabulary Insight
+          translate: Selection Translation
+          speak: Speak
+          customFeatures: Custom AI Features
       closeMenu:
         disableForSite: Disable for this site
         disableGlobally: Disable globally
@@ -465,6 +495,24 @@ options:
       translate:
         title: Enable Context Menu Translate
         description: Add a translate option to the browser right-click menu for quick page translation
+      contexts:
+        title: Context Menus
+        description: Configure separate menu items for page, selection, link, image, and editable areas, with optional collapsing
+        contextDescription: Control what Read Frog shows in this specific right-click location
+        collapsed: Collapse into Read Frog submenu
+        items: Menu Items
+        targets:
+          page: Page
+          selection: Selected Text
+          link: Link
+          image: Image
+          editable: Input Field
+        actions:
+          selectionTranslate: Selection Translation
+          selectionVocabularyInsight: Vocabulary Insight
+          togglePageTranslation: Toggle Page Translation
+          translateSelectionInHub: Translate Selection
+          openOptions: Open Options
   translation:
     title: Translation
     requestQueueConfig:

@@ -29,7 +29,7 @@ export function SpeakButton() {
   return (
     <button
       type="button"
-      className="size-6 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
+      className="flex size-[var(--rf-selection-toolbar-button-size)] items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer shrink-0"
       onClick={handleClick}
       title={isFetching ? "Fetching audio… Click to stop" : isPlaying ? "Playing audio… Click to stop" : "Speak selected text"}
     >

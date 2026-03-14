@@ -116,6 +116,10 @@ export default function FloatingButton() {
   }
 
   const attachSideClassName = isDraggingButton || isSideOpen || isDropdownOpen ? "translate-x-0" : ""
+  const appearance = floatingButton.appearance
+  const isRight = appearance.side === "right"
+  const shouldAlwaysExpand = appearance.expandMode === "always"
+  const revealClassName = shouldAlwaysExpand ? "translate-x-0" : attachSideClassName
 
   if (!floatingButton.enabled || floatingButton.disabledFloatingButtonPatterns.some(pattern => matchDomainPattern(window.location.href, pattern))) {
     return null
@@ -123,79 +127,113 @@ export default function FloatingButton() {
 
   return (
     <div
-      className="group fixed z-2147483647 flex flex-col items-end gap-2 print:hidden"
+      className={cn(
+        "group fixed z-2147483647 flex flex-col gap-2 print:hidden",
+        isRight ? "items-end" : "items-start",
+      )}
       style={{
-        right: isSideOpen
-          ? `calc(${sideContent.width}px + var(--removed-body-scroll-bar-size, 0px))`
-          : "var(--removed-body-scroll-bar-size, 0px)",
+        right: isRight
+          ? isSideOpen
+            ? `calc(${sideContent.width}px + var(--removed-body-scroll-bar-size, 0px))`
+            : "var(--removed-body-scroll-bar-size, 0px)"
+          : undefined,
+        left: isRight
+          ? undefined
+          : isSideOpen
+            ? `${sideContent.width}px`
+            : "0px",
         top: `${(dragPosition ?? floatingButton.position) * 100}vh`,
+        ["--rf-floating-button-idle-opacity" as string]: String(appearance.idleOpacity),
+        ["--rf-floating-button-scale" as string]: String(appearance.scale),
       }}
     >
-      <TranslateButton className={attachSideClassName} />
+      {appearance.showQuickTranslateButton && (
+        <TranslateButton className={revealClassName} side={appearance.side} expandMode={appearance.expandMode} />
+      )}
       <div
         className={cn(
-          "border-border flex h-10 w-15 items-center rounded-l-full border border-r-0 bg-white opacity-60 shadow-lg group-hover:opacity-100 dark:bg-neutral-900",
-          "translate-x-5 transition-transform duration-300 group-hover:translate-x-0",
+          "border-border flex h-10 w-15 items-center border bg-white shadow-lg dark:bg-neutral-900",
+          isRight ? "rounded-l-full border-r-0" : "rounded-r-full border-l-0 flex-row-reverse",
+          shouldAlwaysExpand
+            ? "translate-x-0"
+            : isRight
+              ? "translate-x-5 group-hover:translate-x-0"
+              : "-translate-x-5 group-hover:translate-x-0",
+          "opacity-[var(--rf-floating-button-idle-opacity)] group-hover:opacity-100 transition-transform duration-300 scale-[var(--rf-floating-button-scale)]",
           (isSideOpen || isDropdownOpen) && "opacity-100",
           isDraggingButton ? "cursor-move" : "cursor-pointer",
-          attachSideClassName,
+          revealClassName,
         )}
         onMouseDown={handleButtonDragStart}
       >
         <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-          <DropdownMenuTrigger
-            render={(
-              <button
-                type="button"
-                title="Close floating button"
-                className={cn(
-                  "border-border absolute -top-1 -left-1 hidden cursor-pointer rounded-full border bg-neutral-100 dark:bg-neutral-900",
-                  "group-hover:block",
-                  isDropdownOpen && "block",
+          {appearance.showCloseButton && (
+            <>
+              <DropdownMenuTrigger
+                render={(
+                  <button
+                    type="button"
+                    title="Close floating button"
+                    className={cn(
+                      "border-border absolute -top-1 hidden cursor-pointer rounded-full border bg-neutral-100 dark:bg-neutral-900",
+                      isRight ? "-left-1" : "-right-1",
+                      "group-hover:block",
+                      isDropdownOpen && "block",
+                    )}
+                    onMouseDown={e => e.stopPropagation()}
+                  />
                 )}
-                onMouseDown={e => e.stopPropagation()} // 父级不会收到 mousedown
-              />
-            )}
-          >
-            <IconX className="h-3 w-3 text-neutral-400 dark:text-neutral-600" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent container={shadowWrapper} align="start" side="left" className="z-2147483647 w-fit! whitespace-nowrap">
-            <DropdownMenuItem
-              onMouseDown={e => e.stopPropagation()}
-              onClick={() => {
-                const currentDomain = window.location.hostname
-                const currentPatterns = floatingButton.disabledFloatingButtonPatterns || []
-                void setFloatingButton({
-                  ...floatingButton,
-                  disabledFloatingButtonPatterns: [...currentPatterns, currentDomain],
-                })
-              }}
-            >
-              {i18n.t("options.floatingButtonAndToolbar.floatingButton.closeMenu.disableForSite")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onMouseDown={e => e.stopPropagation()}
-              onClick={() => {
-                void setFloatingButton({ ...floatingButton, enabled: false })
-              }}
-            >
-              {i18n.t("options.floatingButtonAndToolbar.floatingButton.closeMenu.disableGlobally")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+              >
+                <IconX className="h-3 w-3 text-neutral-400 dark:text-neutral-600" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                container={shadowWrapper}
+                align="start"
+                side={isRight ? "left" : "right"}
+                className="z-2147483647 w-fit! whitespace-nowrap"
+              >
+                <DropdownMenuItem
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={() => {
+                    const currentDomain = window.location.hostname
+                    const currentPatterns = floatingButton.disabledFloatingButtonPatterns || []
+                    void setFloatingButton({
+                      ...floatingButton,
+                      disabledFloatingButtonPatterns: [...currentPatterns, currentDomain],
+                    })
+                  }}
+                >
+                  {i18n.t("options.floatingButtonAndToolbar.floatingButton.closeMenu.disableForSite")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={() => {
+                    void setFloatingButton({ ...floatingButton, enabled: false })
+                  }}
+                >
+                  {i18n.t("options.floatingButtonAndToolbar.floatingButton.closeMenu.disableGlobally")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </>
+          )}
         </DropdownMenu>
         <img
           src={readFrogLogoUrl}
           alt={APP_NAME}
-          className="ml-[5px] h-8 w-8 rounded-full"
+          className={cn("h-8 w-8 rounded-full", isRight ? "ml-[5px]" : "mr-[5px]")}
         />
       </div>
-      <HiddenButton
-        className={attachSideClassName}
-        icon={<IconSettings className="h-5 w-5" />}
-        onClick={() => {
-          void sendMessage("openOptionsPage", undefined)
-        }}
-      />
+      {appearance.showSettingsButton && (
+        <HiddenButton
+          className={revealClassName}
+          side={appearance.side}
+          expandMode={appearance.expandMode}
+          icon={<IconSettings className="h-5 w-5" />}
+          onClick={() => {
+            void sendMessage("openOptionsPage", undefined)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -34,7 +34,11 @@ export function AiButton() {
   }
 
   return (
-    <button type="button" className="size-6 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer" onClick={handleClick}>
+    <button
+      type="button"
+      className="flex size-[var(--rf-selection-toolbar-button-size)] items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer shrink-0"
+      onClick={handleClick}
+    >
       <IconZoomScan className="size-4" />
     </button>
   )

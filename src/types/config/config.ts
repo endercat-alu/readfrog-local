@@ -3,6 +3,7 @@ import { langCodeISO6393Schema, langLevel } from "@read-frog/definitions"
 import { z } from "zod"
 import { FEATURE_PROVIDER_DEFS } from "@/utils/constants/feature-providers"
 import { MIN_SIDE_CONTENT_WIDTH } from "@/utils/constants/side"
+import { contextMenuContextsSchema, floatingButtonAppearanceSchema, selectionToolbarAppearanceSchema } from "./overlay-tools"
 import { glossaryConfigSchema } from "./glossary"
 import { isLLMProvider, NON_API_TRANSLATE_PROVIDERS_MAP, providersConfigSchema } from "./provider"
 import { selectionToolbarCustomFeaturesSchema } from "./selection-toolbar"
@@ -22,6 +23,7 @@ const floatingButtonSchema = z.object({
   position: z.number().min(0).max(1),
   disabledFloatingButtonPatterns: z.array(z.string()),
   clickAction: z.enum(["panel", "translate"]),
+  appearance: floatingButtonAppearanceSchema,
 })
 
 const selectionToolbarFeatureSchema = z.object({
@@ -37,6 +39,7 @@ const selectionToolbarSchema = z.object({
     vocabularyInsight: selectionToolbarFeatureSchema,
   }),
   customFeatures: selectionToolbarCustomFeaturesSchema,
+  appearance: selectionToolbarAppearanceSchema,
 })
 
 // side content schema
@@ -52,6 +55,7 @@ const betaExperienceSchema = z.object({
 // context menu schema
 const contextMenuSchema = z.object({
   enabled: z.boolean(),
+  contexts: contextMenuContextsSchema,
 })
 
 // input translation language selector: 'sourceCode', 'targetCode', or fixed language code

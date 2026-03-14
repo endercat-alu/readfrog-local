@@ -11,6 +11,7 @@ import { baseThemeModeAtom } from "@/utils/atoms/theme"
 import { getLocalConfig } from "@/utils/config/storage"
 import { APP_NAME } from "@/utils/constants/app"
 import { ensureIconifyBackgroundFetch } from "@/utils/iconify/setup-background-fetch"
+import { onMessage } from "@/utils/message"
 import { protectSelectAllShadowRoot } from "@/utils/select-all"
 import { insertShadowRootUIWrapperInto } from "@/utils/shadow-root"
 import { isSiteEnabled } from "@/utils/site-control"
@@ -18,6 +19,7 @@ import { addStyleToShadow } from "@/utils/styles"
 import { queryClient } from "@/utils/tanstack-query"
 import { getLocalThemeMode } from "@/utils/theme"
 import App from "./app"
+import { OPEN_SELECTION_TOOLBAR_FEATURE_EVENT } from "./selection-toolbar/context-menu-event"
 import "@/assets/styles/theme.css"
 import "@/assets/styles/text-small.css"
 
@@ -96,5 +98,11 @@ export default defineContentScript({
 
     // 4. Mount the UI
     ui.mount()
+
+    onMessage("openSelectionToolbarFeatureFromContextMenu", (message) => {
+      window.dispatchEvent(new CustomEvent(OPEN_SELECTION_TOOLBAR_FEATURE_EVENT, {
+        detail: message.data,
+      }))
+    })
   },
 })

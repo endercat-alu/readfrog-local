@@ -1,13 +1,23 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
+import type { ReactElement } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { NOTRANSLATE_CLASS } from "@/utils/constants/dom-labels"
 import { MARGIN } from "@/utils/constants/selection"
 import { matchDomainPattern } from "@/utils/url"
 import { AiButton, AiPopover } from "./ai-button"
-import { isSelectionToolbarVisibleAtom, selectionContentAtom, selectionRangeAtom } from "./atom"
+import {
+  isAiPopoverVisibleAtom,
+  isCustomFeaturePopoverVisibleAtom,
+  isSelectionToolbarVisibleAtom,
+  isTranslatePopoverVisibleAtom,
+  mouseClickPositionAtom,
+  selectionContentAtom,
+  selectionRangeAtom,
+} from "./atom"
 import { CloseButton, DropEvent } from "./close-button"
-import { SelectionToolbarCustomFeatureButtons, SelectionToolbarCustomFeaturePopover } from "./custom-feature-button"
+import { OPEN_SELECTION_TOOLBAR_FEATURE_EVENT } from "./context-menu-event"
+import { SelectionToolbarCustomFeatureButton, SelectionToolbarCustomFeaturePopover } from "./custom-feature-button"
 import { SpeakButton } from "./speak-button"
 import { TranslateButton, TranslatePopover } from "./translate-button"
 
@@ -68,8 +78,45 @@ export function SelectionToolbar() {
   const [isSelectionToolbarVisible, setIsSelectionToolbarVisible] = useAtom(isSelectionToolbarVisibleAtom)
   const setSelectionContent = useSetAtom(selectionContentAtom)
   const setSelectionRange = useSetAtom(selectionRangeAtom)
+  const setMousePosition = useSetAtom(mouseClickPositionAtom)
+  const setIsTranslatePopoverVisible = useSetAtom(isTranslatePopoverVisibleAtom)
+  const setIsAiPopoverVisible = useSetAtom(isAiPopoverVisibleAtom)
+  const setIsCustomFeaturePopoverVisible = useSetAtom(isCustomFeaturePopoverVisibleAtom)
   const selectionToolbar = useAtomValue(configFieldsAtomMap.selectionToolbar)
   const dropdownOpenRef = useRef(false)
+  const enabledCustomFeatures = useMemo(
+    () => selectionToolbar.customFeatures?.filter(feature => feature.enabled !== false) ?? [],
+    [selectionToolbar.customFeatures],
+  )
+  const orderedActionButtons = useMemo(() => {
+    const actionOrder = Array.from(new Set(selectionToolbar.appearance.buttonOrder))
+    const buttons: ReactElement[] = []
+
+    for (const action of actionOrder) {
+      switch (action) {
+        case "vocabularyInsight":
+          buttons.push(<AiButton key="vocabularyInsight" />)
+          break
+        case "translate":
+          buttons.push(<TranslateButton key="translate" />)
+          break
+        case "speak":
+          if (!isFirefox) {
+            buttons.push(<SpeakButton key="speak" />)
+          }
+          break
+        case "customFeatures":
+          buttons.push(
+            ...enabledCustomFeatures.map(feature => (
+              <SelectionToolbarCustomFeatureButton key={feature.id} feature={feature} />
+            )),
+          )
+          break
+      }
+    }
+
+    return buttons
+  }, [enabledCustomFeatures, isFirefox, selectionToolbar.appearance.buttonOrder])
 
   const updatePosition = useCallback(() => {
     if (!isSelectionToolbarVisible || !tooltipRef.current || !selectionPositionRef.current)
@@ -234,25 +281,85 @@ export function SelectionToolbar() {
     return () => window.removeEventListener(DropEvent, handler)
   }, [])
 
+  useEffect(() => {
+    const handleOpenFeature = (event: Event) => {
+      const feature = (event as CustomEvent<{ feature?: "translate" | "vocabularyInsight" }>).detail?.feature
+      if (!feature)
+        return
+
+      if (!selectionToolbar.enabled) {
+        return
+      }
+
+      const isSiteDisabled = selectionToolbar.disabledSelectionToolbarPatterns?.some(pattern =>
+        matchDomainPattern(window.location.href, pattern),
+      )
+      if (isSiteDisabled) {
+        return
+      }
+
+      const selection = window.getSelection()
+      const selectedText = selection?.toString().trim() ?? ""
+      if (!selection || selectedText.length === 0 || selection.rangeCount === 0) {
+        return
+      }
+
+      const range = selection.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+
+      setSelectionContent(selectedText)
+      setSelectionRange(range)
+      setMousePosition({
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY,
+      })
+      setIsSelectionToolbarVisible(false)
+      setIsCustomFeaturePopoverVisible(false)
+      setIsTranslatePopoverVisible(feature === "translate")
+      setIsAiPopoverVisible(feature === "vocabularyInsight")
+    }
+
+    window.addEventListener(OPEN_SELECTION_TOOLBAR_FEATURE_EVENT, handleOpenFeature)
+    return () => window.removeEventListener(OPEN_SELECTION_TOOLBAR_FEATURE_EVENT, handleOpenFeature)
+  }, [
+    selectionToolbar.enabled,
+    selectionToolbar.disabledSelectionToolbarPatterns,
+    setIsAiPopoverVisible,
+    setIsCustomFeaturePopoverVisible,
+    setIsSelectionToolbarVisible,
+    setIsTranslatePopoverVisible,
+    setMousePosition,
+    setSelectionContent,
+    setSelectionRange,
+  ])
+
   // Check if current site is disabled
   const isSiteDisabled = selectionToolbar.disabledSelectionToolbarPatterns?.some(pattern =>
     matchDomainPattern(window.location.href, pattern),
   )
+  const shouldRenderToolbar
+    = isSelectionToolbarVisible
+      && selectionToolbar.enabled
+      && !isSiteDisabled
+      && (orderedActionButtons.length > 0 || selectionToolbar.appearance.showCloseButton)
 
   return (
     <div ref={tooltipContainerRef} className={NOTRANSLATE_CLASS}>
-      {isSelectionToolbarVisible && selectionToolbar.enabled && !isSiteDisabled && (
+      {shouldRenderToolbar && (
         <div
           ref={tooltipRef}
           className="group absolute z-2147483647 bg-zinc-200 dark:bg-zinc-800 rounded-sm shadow-lg overflow-visible flex items-center"
+          style={{
+            ["--rf-selection-toolbar-button-size" as string]: `${selectionToolbar.appearance.buttonSize}px`,
+          }}
         >
-          <div className="flex items-center overflow-x-auto overflow-y-hidden rounded-sm max-w-[420px] no-scrollbar">
-            <AiButton />
-            <TranslateButton />
-            {!isFirefox && <SpeakButton />}
-            <SelectionToolbarCustomFeatureButtons />
+          <div
+            className="flex items-center overflow-x-auto overflow-y-hidden rounded-sm no-scrollbar"
+            style={{ maxWidth: `${selectionToolbar.appearance.maxWidth}px` }}
+          >
+            {orderedActionButtons}
           </div>
-          <CloseButton />
+          {selectionToolbar.appearance.showCloseButton && <CloseButton />}
         </div>
       )}
       <AiPopover />

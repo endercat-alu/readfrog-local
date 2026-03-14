@@ -2,6 +2,7 @@ import { i18n } from "#imports"
 import contextMenuDemoImage from "@/assets/demo/context-menu.png"
 import { GradientBackground } from "@/components/gradient-background"
 import { PageLayout } from "../../components/page-layout"
+import { ContextMenuContexts } from "./context-menu-contexts"
 import { ContextMenuTranslateToggle } from "./context-menu-translate-toggle"
 
 export function ContextMenuPage() {
@@ -16,6 +17,7 @@ export function ContextMenuPage() {
       </GradientBackground>
       <div className="*:border-b [&>*:last-child]:border-b-0">
         <ContextMenuTranslateToggle />
+        <ContextMenuContexts />
       </div>
     </PageLayout>
   )

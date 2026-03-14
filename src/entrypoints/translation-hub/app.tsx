@@ -1,12 +1,28 @@
 import { i18n } from "#imports"
+import { useSetAtom } from "jotai"
+import { startTransition, useEffect } from "react"
 import { LanguageControlPanel } from "./components/language-control-panel"
 import { PromptSelector } from "./components/prompt-selector"
 import { TextInput } from "./components/text-input"
 import { TranslationPanel } from "./components/translation-panel"
 import { TranslationPanelActions } from "./components/translation-panel-actions"
 import { TranslationServiceDropdown } from "./components/translation-service-dropdown"
+import { inputTextAtom } from "./atoms"
 
 export default function App() {
+  const setInputText = useSetAtom(inputTextAtom)
+
+  useEffect(() => {
+    const text = new URLSearchParams(window.location.search).get("text")
+    if (!text) {
+      return
+    }
+
+    startTransition(() => {
+      setInputText(text)
+    })
+  }, [setInputText])
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto">

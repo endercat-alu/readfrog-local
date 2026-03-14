@@ -34,7 +34,7 @@ function getCustomFeatureErrorMessage(error: unknown) {
   return "Custom feature request failed"
 }
 
-function SelectionToolbarCustomFeatureButton({ feature }: { feature: SelectionToolbarCustomFeature }) {
+export function SelectionToolbarCustomFeatureButton({ feature }: { feature: SelectionToolbarCustomFeature }) {
   const setIsSelectionToolbarVisible = useSetAtom(isSelectionToolbarVisibleAtom)
   const setIsCustomFeaturePopoverVisible = useSetAtom(isCustomFeaturePopoverVisibleAtom)
   const setMousePosition = useSetAtom(mouseClickPositionAtom)
@@ -51,7 +51,7 @@ function SelectionToolbarCustomFeatureButton({ feature }: { feature: SelectionTo
   return (
     <button
       type="button"
-      className="size-6 shrink-0 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
+      className="flex size-[var(--rf-selection-toolbar-button-size)] shrink-0 items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
       onClick={handleClick}
       title={feature.name}
     >
