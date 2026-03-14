@@ -9,6 +9,7 @@ contextMenu:
   showOriginal: 显示原文
   selectionTranslate: 划词翻译
   selectionVocabularyInsight: 词汇解析
+  selectionDictionary: 词典
   translateSelectionInHub: 翻译选中文本
   openOptions: 打开设置
 popup:
@@ -295,7 +296,7 @@ options:
           vocabularyInsight: 词汇解析
           translate: 划词翻译
           speak: 朗读
-          customFeatures: 自定义 AI 功能
+          customFeatures: 词典
       closeMenu:
         disableForSite: 禁用此网站
         disableGlobally: 全局禁用
@@ -510,6 +511,7 @@ options:
         actions:
           selectionTranslate: 划词翻译
           selectionVocabularyInsight: 词汇解析
+          selectionDictionary: 词典
           togglePageTranslation: 切换页面翻译
           translateSelectionInHub: 翻译选中文本
           openOptions: 打开设置

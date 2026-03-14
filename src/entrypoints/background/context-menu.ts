@@ -39,6 +39,7 @@ const CONTEXT_MENU_CONTEXTS: Record<ContextMenuTarget, MenuContexts> = {
 const DEFAULT_ACTION_IDS: Record<ContextMenuItem, string[]> = {
   selectionTranslate: [],
   selectionVocabularyInsight: [],
+  selectionDictionary: [],
   togglePageTranslation: [],
   translateSelectionInHub: [],
   openOptions: [],
@@ -88,6 +89,8 @@ function getActionTitle(action: ContextMenuItem, isTranslated: boolean) {
       return i18n.t("contextMenu.selectionTranslate")
     case "selectionVocabularyInsight":
       return i18n.t("contextMenu.selectionVocabularyInsight")
+    case "selectionDictionary":
+      return i18n.t("contextMenu.selectionDictionary")
     case "translateSelectionInHub":
       return i18n.t("contextMenu.translateSelectionInHub")
     case "openOptions":
@@ -99,6 +102,7 @@ function resetMenuRegistry() {
   actionMenuIds = {
     selectionTranslate: [],
     selectionVocabularyInsight: [],
+    selectionDictionary: [],
     togglePageTranslation: [],
     translateSelectionInHub: [],
     openOptions: [],
@@ -331,6 +335,11 @@ async function handleContextMenuClick(
     case "selectionVocabularyInsight":
       if (tab?.id) {
         await sendMessage("openSelectionToolbarFeatureFromContextMenu", { feature: "vocabularyInsight" }, tab.id)
+      }
+      break
+    case "selectionDictionary":
+      if (tab?.id) {
+        await sendMessage("openSelectionToolbarFeatureFromContextMenu", { feature: "dictionary" }, tab.id)
       }
       break
     case "togglePageTranslation":

@@ -19,7 +19,7 @@ const CONTEXT_TARGETS: ContextMenuTarget[] = [
 
 const AVAILABLE_ACTIONS: Record<ContextMenuTarget, ContextMenuItem[]> = {
   page: ["togglePageTranslation", "openOptions"],
-  selection: ["selectionTranslate", "selectionVocabularyInsight", "translateSelectionInHub", "openOptions"],
+  selection: ["selectionTranslate", "selectionVocabularyInsight", "selectionDictionary", "translateSelectionInHub", "openOptions"],
   link: ["togglePageTranslation", "openOptions"],
   image: ["togglePageTranslation", "openOptions"],
   editable: ["togglePageTranslation", "openOptions"],

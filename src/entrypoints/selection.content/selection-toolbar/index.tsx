@@ -7,6 +7,7 @@ import { MARGIN } from "@/utils/constants/selection"
 import { matchDomainPattern } from "@/utils/url"
 import { AiButton, AiPopover } from "./ai-button"
 import {
+  activeCustomFeatureIdAtom,
   isAiPopoverVisibleAtom,
   isCustomFeaturePopoverVisibleAtom,
   isSelectionToolbarVisibleAtom,
@@ -82,6 +83,7 @@ export function SelectionToolbar() {
   const setIsTranslatePopoverVisible = useSetAtom(isTranslatePopoverVisibleAtom)
   const setIsAiPopoverVisible = useSetAtom(isAiPopoverVisibleAtom)
   const setIsCustomFeaturePopoverVisible = useSetAtom(isCustomFeaturePopoverVisibleAtom)
+  const setActiveCustomFeatureId = useSetAtom(activeCustomFeatureIdAtom)
   const selectionToolbar = useAtomValue(configFieldsAtomMap.selectionToolbar)
   const dropdownOpenRef = useRef(false)
   const enabledCustomFeatures = useMemo(
@@ -283,20 +285,9 @@ export function SelectionToolbar() {
 
   useEffect(() => {
     const handleOpenFeature = (event: Event) => {
-      const feature = (event as CustomEvent<{ feature?: "translate" | "vocabularyInsight" }>).detail?.feature
+      const feature = (event as CustomEvent<{ feature?: "translate" | "vocabularyInsight" | "dictionary" }>).detail?.feature
       if (!feature)
         return
-
-      if (!selectionToolbar.enabled) {
-        return
-      }
-
-      const isSiteDisabled = selectionToolbar.disabledSelectionToolbarPatterns?.some(pattern =>
-        matchDomainPattern(window.location.href, pattern),
-      )
-      if (isSiteDisabled) {
-        return
-      }
 
       const selection = window.getSelection()
       const selectedText = selection?.toString().trim() ?? ""
@@ -314,23 +305,38 @@ export function SelectionToolbar() {
         y: rect.bottom + window.scrollY,
       })
       setIsSelectionToolbarVisible(false)
-      setIsCustomFeaturePopoverVisible(false)
       setIsTranslatePopoverVisible(feature === "translate")
       setIsAiPopoverVisible(feature === "vocabularyInsight")
+
+      if (feature === "dictionary") {
+        const defaultDictionaryFeature = selectionToolbar.customFeatures?.find(item => item.id === "default-dictionary" && item.enabled !== false)
+        const fallbackFeature = selectionToolbar.customFeatures?.find(item => item.enabled !== false)
+        const activeFeature = defaultDictionaryFeature ?? fallbackFeature ?? null
+        if (!activeFeature) {
+          setIsCustomFeaturePopoverVisible(false)
+          return
+        }
+        setActiveCustomFeatureId(activeFeature.id)
+        setIsCustomFeaturePopoverVisible(true)
+      }
+      else {
+        setActiveCustomFeatureId(null)
+        setIsCustomFeaturePopoverVisible(false)
+      }
     }
 
     window.addEventListener(OPEN_SELECTION_TOOLBAR_FEATURE_EVENT, handleOpenFeature)
     return () => window.removeEventListener(OPEN_SELECTION_TOOLBAR_FEATURE_EVENT, handleOpenFeature)
   }, [
-    selectionToolbar.enabled,
-    selectionToolbar.disabledSelectionToolbarPatterns,
     setIsAiPopoverVisible,
+    setActiveCustomFeatureId,
     setIsCustomFeaturePopoverVisible,
     setIsSelectionToolbarVisible,
     setIsTranslatePopoverVisible,
     setMousePosition,
     setSelectionContent,
     setSelectionRange,
+    selectionToolbar.customFeatures,
   ])
 
   // Check if current site is disabled

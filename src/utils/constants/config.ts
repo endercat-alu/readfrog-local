@@ -34,6 +34,7 @@ export const DEFAULT_CONTEXT_MENU_PAGE_ITEMS: ContextMenuItem[] = [
 export const DEFAULT_CONTEXT_MENU_SELECTION_ITEMS: ContextMenuItem[] = [
   "selectionTranslate",
   "selectionVocabularyInsight",
+  "selectionDictionary",
   "openOptions",
 ]
 export const DEFAULT_CONTEXT_MENU_COMMON_ITEMS: ContextMenuItem[] = [

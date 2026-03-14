@@ -13,6 +13,7 @@ export const selectionToolbarActionSchema = z.enum([
 export const contextMenuItemSchema = z.enum([
   "selectionTranslate",
   "selectionVocabularyInsight",
+  "selectionDictionary",
   "togglePageTranslation",
   "translateSelectionInHub",
   "openOptions",

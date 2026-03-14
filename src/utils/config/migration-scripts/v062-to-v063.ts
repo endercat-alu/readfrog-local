@@ -5,6 +5,13 @@ import { DEFAULT_CONFIG } from "@/utils/constants/config"
  * - Adds advanced customization for floating button, selection toolbar, and context menu
  */
 export function migrate(oldConfig: any): any {
+  const selectionItems = Array.isArray(oldConfig.contextMenu?.contexts?.selection?.items)
+    ? Array.from(new Set([
+        ...oldConfig.contextMenu.contexts.selection.items,
+        "selectionDictionary",
+      ]))
+    : DEFAULT_CONFIG.contextMenu.contexts.selection.items
+
   return {
     ...oldConfig,
     floatingButton: {
@@ -26,6 +33,11 @@ export function migrate(oldConfig: any): any {
       contexts: {
         ...DEFAULT_CONFIG.contextMenu.contexts,
         ...oldConfig.contextMenu?.contexts,
+        selection: {
+          ...DEFAULT_CONFIG.contextMenu.contexts.selection,
+          ...oldConfig.contextMenu?.contexts?.selection,
+          items: selectionItems,
+        },
       },
     },
   }

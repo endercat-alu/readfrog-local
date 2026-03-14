@@ -9,6 +9,7 @@ contextMenu:
   showOriginal: Show Original
   selectionTranslate: Selection Translation
   selectionVocabularyInsight: Vocabulary Insight
+  selectionDictionary: Dictionary
   translateSelectionInHub: Translate Selection
   openOptions: Open Options
 popup:
@@ -295,7 +296,7 @@ options:
           vocabularyInsight: Vocabulary Insight
           translate: Selection Translation
           speak: Speak
-          customFeatures: Custom AI Features
+          customFeatures: Dictionary
       closeMenu:
         disableForSite: Disable for this site
         disableGlobally: Disable globally
@@ -510,6 +511,7 @@ options:
         actions:
           selectionTranslate: Selection Translation
           selectionVocabularyInsight: Vocabulary Insight
+          selectionDictionary: Dictionary
           togglePageTranslation: Toggle Page Translation
           translateSelectionInHub: Translate Selection
           openOptions: Open Options
