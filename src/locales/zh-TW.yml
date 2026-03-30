@@ -481,6 +481,31 @@ options:
         title: 最小詞數
         description: 少於此詞數的文字節點將不會被翻譯。使用 Intl.Segmenter 進行跨語言準確分詞。
       error: 數值必須在 $1 到 $2 之間
+    nodeIgnoreHeuristics:
+      title: 啟發式節點忽略規則
+      description: 跳過那些明顯更像程式碼、連結、檔名、雜湊值或純數字的節點或文字
+      rules:
+        semanticTags:
+          title: 語義化標籤過濾
+          description: 跳過 CODE、PRE、KBD、SAMP、SCRIPT、STYLE、NOSCRIPT 等語義區域
+        linkTextTail:
+          title: 連結尾段匹配
+          description: 當連結顯示文字與 URL 最後一段完全一致時跳過，例如下載連結裡的檔名
+        shortFileLink:
+          title: 短文件連結文字
+          description: 當連結目標本身明顯是檔案位址，且連結文字不超過 30 個字元時跳過
+        hashLikeOrFileName:
+          title: 雜湊或檔名匹配
+          description: 跳過常見的長十六進位雜湊，以及明顯帶有常見檔案副檔名的文字
+        versionLike:
+          title: 版本號匹配
+          description: 跳過常見版本號文字，如 v1.2.3、v.2.0、ver.3.1
+        numericLike:
+          title: 純數字內容
+          description: 跳過僅由數字或數字分隔符組成的內容
+        fileSizeLike:
+          title: 檔案大小匹配
+          description: 跳過類似 3.57 MB、128KB 這樣的大小文字
     nodeTranslationHotkey:
       title: 懸停或長按翻譯快捷鍵
       description: 自訂懸停翻譯的修飾鍵，或使用滑鼠長按翻譯段落

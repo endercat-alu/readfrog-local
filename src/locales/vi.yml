@@ -481,6 +481,31 @@ options:
         title: Số từ tối thiểu
         description: Các nút văn bản có ít từ hơn giá trị này sẽ không được dịch. Sử dụng Intl.Segmenter để đếm từ chính xác trên tất cả các ngôn ngữ.
       error: Giá trị phải từ $1 đến $2
+    nodeIgnoreHeuristics:
+      title: Heuristic Node Ignore Rules
+      description: Skip translating nodes or text that strongly look like code, links, filenames, hashes, or pure numbers
+      rules:
+        semanticTags:
+          title: Semantic Tag Filter
+          description: Skip semantic regions such as CODE, PRE, KBD, SAMP, SCRIPT, STYLE, and NOSCRIPT
+        linkTextTail:
+          title: Link Tail Match
+          description: Skip link text when the displayed text exactly matches the last path segment in the URL, such as a download filename
+        shortFileLink:
+          title: Short File Link Text
+          description: Skip short link text when the target URL itself clearly points to a file with a known extension
+        hashLikeOrFileName:
+          title: Hash or Filename Match
+          description: Skip common long hexadecimal hashes and text that clearly looks like a filename with a known extension
+        versionLike:
+          title: Version Pattern Match
+          description: Skip common version strings such as v1.2.3 or ver.2.0
+        numericLike:
+          title: Pure Numeric Content
+          description: Skip content that is only numbers or numeric separators
+        fileSizeLike:
+          title: File Size Pattern
+          description: Skip size strings such as 3.57 MB or 128KB
     nodeTranslationHotkey:
       title: Phím tắt dịch khi di chuột hoặc nhấn giữ
       description: Tùy chỉnh phím bổ trợ khi di chuột hoặc dùng nhấn giữ để dịch đoạn văn

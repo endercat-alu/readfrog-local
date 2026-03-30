@@ -7,6 +7,7 @@ import {
   WALKED_ATTRIBUTE,
 } from "@/utils/constants/dom-labels"
 import { FORCE_BLOCK_TAGS } from "@/utils/constants/dom-rules"
+import { shouldIgnoreElementBySemanticTagHeuristic } from "../translate/node-ignore-heuristics"
 import {
   isCustomForceBlockTranslation,
   isDontWalkIntoAndDontTranslateAsChildElement,
@@ -58,6 +59,10 @@ export function extractTextContent(node: TransNode, config: Config): string {
   // if (isDontWalkIntoButTranslateAsChildElement(node)) {
   //   return ''
   // }
+
+  if (shouldIgnoreElementBySemanticTagHeuristic(node, config)) {
+    return ""
+  }
 
   if (isDontWalkIntoAndDontTranslateAsChildElement(node, config)) {
     return ""

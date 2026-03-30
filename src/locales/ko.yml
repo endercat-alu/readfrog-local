@@ -481,6 +481,31 @@ options:
         title: 최소 단어 수
         description: 이 값보다 적은 단어 수의 텍스트 노드는 번역되지 않습니다. 모든 언어에서 정확한 단어 카운트를 위해 Intl.Segmenter를 사용합니다.
       error: 값은 $1에서 $2 사이여야 합니다
+    nodeIgnoreHeuristics:
+      title: Heuristic Node Ignore Rules
+      description: Skip translating nodes or text that strongly look like code, links, filenames, hashes, or pure numbers
+      rules:
+        semanticTags:
+          title: Semantic Tag Filter
+          description: Skip semantic regions such as CODE, PRE, KBD, SAMP, SCRIPT, STYLE, and NOSCRIPT
+        linkTextTail:
+          title: Link Tail Match
+          description: Skip link text when the displayed text exactly matches the last path segment in the URL, such as a download filename
+        shortFileLink:
+          title: Short File Link Text
+          description: Skip short link text when the target URL itself clearly points to a file with a known extension
+        hashLikeOrFileName:
+          title: Hash or Filename Match
+          description: Skip common long hexadecimal hashes and text that clearly looks like a filename with a known extension
+        versionLike:
+          title: Version Pattern Match
+          description: Skip common version strings such as v1.2.3 or ver.2.0
+        numericLike:
+          title: Pure Numeric Content
+          description: Skip content that is only numbers or numeric separators
+        fileSizeLike:
+          title: File Size Pattern
+          description: Skip size strings such as 3.57 MB or 128KB
     nodeTranslationHotkey:
       title: 호버 또는 길게 누르기 번역 단축키
       description: 호버 번역 수정 키를 사용자 지정하거나 마우스 길게 누르기로 단락을 번역합니다

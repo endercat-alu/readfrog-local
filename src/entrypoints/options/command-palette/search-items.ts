@@ -149,6 +149,13 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.translation.title",
   },
   {
+    sectionId: "node-ignore-heuristics",
+    route: "/translation",
+    titleKey: "options.translation.nodeIgnoreHeuristics.title",
+    descriptionKey: "options.translation.nodeIgnoreHeuristics.description",
+    pageKey: "options.translation.title",
+  },
+  {
     sectionId: "clear-cache",
     route: "/translation",
     titleKey: "options.general.clearCache.title",

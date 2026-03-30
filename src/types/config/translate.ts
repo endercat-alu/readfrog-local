@@ -34,6 +34,24 @@ export const paragraphSegmentationConfigSchema = z.object({
 })
 export type ParagraphSegmentationConfig = z.infer<typeof paragraphSegmentationConfigSchema>
 
+export const NODE_IGNORE_HEURISTIC_RULES = [
+  "semanticTags",
+  "linkTextTail",
+  "shortFileLink",
+  "hashLikeOrFileName",
+  "versionLike",
+  "numericLike",
+  "fileSizeLike",
+] as const
+export const nodeIgnoreHeuristicRuleSchema = z.enum(NODE_IGNORE_HEURISTIC_RULES)
+export type NodeIgnoreHeuristicRule = z.infer<typeof nodeIgnoreHeuristicRuleSchema>
+
+export const nodeIgnoreHeuristicsConfigSchema = z.object({
+  rulesetVersion: z.number().int().default(1),
+  enabledRules: z.array(nodeIgnoreHeuristicRuleSchema),
+})
+export type NodeIgnoreHeuristicsConfig = z.infer<typeof nodeIgnoreHeuristicsConfigSchema>
+
 export const preloadConfigSchema = z.object({
   margin: z.number().min(MIN_PRELOAD_MARGIN).max(MAX_PRELOAD_MARGIN),
   threshold: z.number().min(MIN_PRELOAD_THRESHOLD).max(MAX_PRELOAD_THRESHOLD),
@@ -103,6 +121,7 @@ export const translateConfigSchema = z.object({
     skipLanguages: z.array(langCodeISO6393Schema),
     enableSkipLanguagesLLMDetection: z.boolean(),
     paragraphSegmentation: paragraphSegmentationConfigSchema,
+    nodeIgnoreHeuristics: nodeIgnoreHeuristicsConfigSchema,
   }),
   enableAIContentAware: z.boolean(),
   aiContentAwareMode: aiContentAwareModeSchema,

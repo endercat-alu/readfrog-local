@@ -5,9 +5,10 @@ import { AutoTranslateLanguages } from "./auto-translate-languages"
 import { AutoTranslateWebsitePatterns } from "./auto-translate-website-patterns"
 import { ClearCacheConfig } from "./clear-cache-config"
 import { CustomTranslationStyle } from "./custom-translation-style"
+import { NodeIgnoreHeuristics } from "./node-ignore-heuristics"
 import { NodeTranslationHotkey } from "./node-translation-hotkey"
-import { ParagraphSegmentation } from "./paragraph-segmentation"
 import { PageTranslationShortcut } from "./page-translation-shortcut"
+import { ParagraphSegmentation } from "./paragraph-segmentation"
 import { PersonalizedPrompts } from "./personalized-prompt"
 import { PreloadConfig } from "./preload-config"
 import { RequestBatch } from "./request-batch"
@@ -34,6 +35,7 @@ export function TranslationPage() {
       <RequestRate />
       <RequestBatch />
       <PreloadConfig />
+      <NodeIgnoreHeuristics />
       <SmallParagraphFilter />
       <ClearCacheConfig />
     </PageLayout>

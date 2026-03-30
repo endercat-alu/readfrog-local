@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { DEFAULT_CONFIG, NODE_IGNORE_HEURISTIC_RULESET_VERSION } from "@/utils/constants/config"
 import { extractTextContent } from "../traversal"
 
 describe("extractTextContent", () => {
@@ -96,6 +96,31 @@ describe("extractTextContent", () => {
       const div = document.createElement("div")
       div.innerHTML = "Before<ruby>大阪<rp>(</rp><rt>Osaka</rt><rp>)</rp></ruby>After"
       expect(extractTextContent(div, DEFAULT_CONFIG)).toBe("Before大阪After")
+    })
+
+    it("should exclude semantic tag text when the heuristic is enabled", () => {
+      const div = document.createElement("div")
+      div.innerHTML = "Before<code>npm install</code>After"
+      expect(extractTextContent(div, DEFAULT_CONFIG)).toBe("BeforeAfter")
+    })
+
+    it("should include semantic tag text when the heuristic is disabled", () => {
+      const div = document.createElement("div")
+      div.innerHTML = "Before<code>npm install</code>After"
+      const config = {
+        ...DEFAULT_CONFIG,
+        translate: {
+          ...DEFAULT_CONFIG.translate,
+          page: {
+            ...DEFAULT_CONFIG.translate.page,
+            nodeIgnoreHeuristics: {
+              rulesetVersion: NODE_IGNORE_HEURISTIC_RULESET_VERSION,
+              enabledRules: DEFAULT_CONFIG.translate.page.nodeIgnoreHeuristics.enabledRules.filter(rule => rule !== "semanticTags"),
+            },
+          },
+        },
+      }
+      expect(extractTextContent(div, config)).toBe("Beforenpm installAfter")
     })
   })
 

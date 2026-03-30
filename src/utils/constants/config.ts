@@ -1,7 +1,7 @@
 import type { Config } from "@/types/config/config"
-import type { SelectionToolbarCustomFeature } from "@/types/config/selection-toolbar"
-import type { AIContentAwareMode, PageTranslateRange } from "@/types/config/translate"
 import type { ContextMenuItem, SelectionToolbarAction } from "@/types/config/overlay-tools"
+import type { SelectionToolbarCustomFeature } from "@/types/config/selection-toolbar"
+import type { AIContentAwareMode, NodeIgnoreHeuristicRule, PageTranslateRange } from "@/types/config/translate"
 import { CUSTOM_FEATURE_TEMPLATES } from "./custom-feature-templates"
 import { DEFAULT_TRANSLATE_PROMPTS_CONFIG } from "./prompt"
 import { DEFAULT_PROVIDER_CONFIG_LIST } from "./providers"
@@ -18,7 +18,19 @@ export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 export const THEME_STORAGE_KEY = "theme"
 export const DETECTED_CODE_STORAGE_KEY = "detectedCode"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 63
+export const CONFIG_SCHEMA_VERSION = 64
+
+export const NODE_IGNORE_HEURISTIC_RULESET_VERSION = 2
+
+export const DEFAULT_NODE_IGNORE_HEURISTIC_RULES: NodeIgnoreHeuristicRule[] = [
+  "semanticTags",
+  "linkTextTail",
+  "shortFileLink",
+  "hashLikeOrFileName",
+  "versionLike",
+  "numericLike",
+  "fileSizeLike",
+]
 
 export const DEFAULT_FLOATING_BUTTON_POSITION = 0.66
 export const DEFAULT_SELECTION_TOOLBAR_BUTTON_ORDER: SelectionToolbarAction[] = [
@@ -94,6 +106,10 @@ export const DEFAULT_CONFIG: Config = {
       paragraphSegmentation: {
         enabledRules: ["blankLine"],
         maxLinesPerParagraph: DEFAULT_PARAGRAPH_LINES_PER_SEGMENT,
+      },
+      nodeIgnoreHeuristics: {
+        rulesetVersion: NODE_IGNORE_HEURISTIC_RULESET_VERSION,
+        enabledRules: DEFAULT_NODE_IGNORE_HEURISTIC_RULES,
       },
     },
     enableAIContentAware: false,

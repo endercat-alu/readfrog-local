@@ -16,10 +16,10 @@ import { removeTranslatedWrapperWithRestore, shouldRestoreOriginalContentForWrap
 import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
 import { shouldFilterSmallParagraph } from "../filter-small-paragraph"
+import { shouldIgnoreTextByHeuristics } from "../node-ignore-heuristics"
 import { setPageTranslationRuntimeConfig } from "../runtime-config"
 import { setTranslationDirAndLang } from "../translation-attributes"
 import { createSpinnerInside, getTranslatedTextAndRemoveSpinner } from "../ui/spinner"
-import { isNumericContent } from "../ui/translation-utils"
 import { MARK_ATTRIBUTES_REGEX, originalContentMap, translatingNodes } from "./translation-state"
 
 export async function translateNodes(
@@ -90,7 +90,7 @@ export async function translateNodesBilingualMode(
     }
 
     const textContent = transNodes.map(node => extractTextContent(node, config)).join("").trim()
-    if (!textContent || isNumericContent(textContent))
+    if (!textContent || shouldIgnoreTextByHeuristics(transNodes, textContent, config))
       return
 
     if (await shouldFilterSmallParagraph(textContent, config))
@@ -244,7 +244,7 @@ export async function translateNodeTranslationOnlyMode(
     }
 
     const innerTextContent = transNodes.map(node => extractTextContent(node, config)).join("")
-    if (!innerTextContent.trim() || isNumericContent(innerTextContent))
+    if (!innerTextContent.trim() || shouldIgnoreTextByHeuristics(transNodes, innerTextContent, config))
       return
 
     if (await shouldFilterSmallParagraph(innerTextContent, config))

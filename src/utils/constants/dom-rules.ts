@@ -77,13 +77,9 @@ export const DONT_WALK_AND_TRANSLATE_TAGS = new Set([
   "SOURCE",
   "TRACK",
   "META",
-  "SCRIPT",
-  "NOSCRIPT",
-  "STYLE",
   "LINK",
   "RT",
   "RP",
-  "PRE",
   "svg",
   ...MATH_TAGS,
 ])
@@ -91,6 +87,16 @@ export const DONT_WALK_AND_TRANSLATE_TAGS = new Set([
 export const DONT_WALK_BUT_TRANSLATE_TAGS = new Set([
   "CODE",
   "TIME",
+])
+
+export const SEMANTIC_IGNORE_TAGS = new Set([
+  "CODE",
+  "PRE",
+  "KBD",
+  "SAMP",
+  "SCRIPT",
+  "STYLE",
+  "NOSCRIPT",
 ])
 
 // force translation style as inline node, but not force the node as inline node

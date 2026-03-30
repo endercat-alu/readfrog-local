@@ -3,7 +3,7 @@ import type { Config } from "@/types/config/config"
 import type { TranslationMode } from "@/types/config/translate"
 import { act, render, screen, waitFor } from "@testing-library/react"
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { DEFAULT_CONFIG, NODE_IGNORE_HEURISTIC_RULESET_VERSION } from "@/utils/constants/config"
 import {
   BLOCK_ATTRIBUTE,
   BLOCK_CONTENT_CLASS,
@@ -41,6 +41,27 @@ const TRANSLATION_ONLY_CONFIG: Config = {
     ...DEFAULT_CONFIG.translate,
     mode: "translationOnly" as const,
   },
+}
+
+function createConfigWithEnabledRules(
+  translationMode: TranslationMode,
+  enabledRules: Config["translate"]["page"]["nodeIgnoreHeuristics"]["enabledRules"],
+): Config {
+  const baseConfig = translationMode === "bilingual" ? BILINGUAL_CONFIG : TRANSLATION_ONLY_CONFIG
+
+  return {
+    ...baseConfig,
+    translate: {
+      ...baseConfig.translate,
+      page: {
+        ...baseConfig.translate.page,
+        nodeIgnoreHeuristics: {
+          rulesetVersion: NODE_IGNORE_HEURISTIC_RULESET_VERSION,
+          enabledRules,
+        },
+      },
+    },
+  }
 }
 
 describe("translate", () => {
@@ -1503,6 +1524,100 @@ describe("translate", () => {
         expect(node.querySelector(`.${CONTENT_WRAPPER_CLASS}`)).toBeFalsy()
         expect(node.textContent).toBe("100200300")
       })
+    })
+  })
+
+  describe("heuristic node ignore rules", () => {
+    it("should skip translating link text that matches the url tail", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          <a href="https://example.com/downloads/read-frog.zip">read-frog.zip</a>
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
+    })
+
+    it("should translate link text that matches the url tail when the rule is disabled", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          <a href="https://example.com/downloads/read-frog.zip">read-frog.zip</a>
+        </div>,
+      )
+
+      await translateWithConfig(
+        createConfigWithEnabledRules(
+          "bilingual",
+          DEFAULT_CONFIG.translate.page.nodeIgnoreHeuristics.enabledRules.filter(
+            rule => rule !== "linkTextTail" && rule !== "shortFileLink" && rule !== "hashLikeOrFileName",
+          ),
+        ),
+        true,
+      )
+
+      expect(translateTextForPage).toHaveBeenCalledWith("read-frog.zip")
+    })
+
+    it("should skip translating filename-like text", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          archive.tar.gz
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
+    })
+
+    it("should skip translating file-size-like text", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          3.57 MB
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
+    })
+
+    it("should skip translating version-like text", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          ver.2.1.0
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
+    })
+
+    it("should skip translating short file links", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          <a href="https://example.com/downloads/read-frog.zip">Download</a>
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
     })
   })
   describe("force block node", () => {

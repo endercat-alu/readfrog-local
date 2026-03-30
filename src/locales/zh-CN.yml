@@ -644,6 +644,31 @@ options:
         title: 最小词数
         description: 少于此词数的文本节点将不会被翻译。使用 Intl.Segmenter 进行跨语言准确分词。
       error: 数值必须在 $1 到 $2 之间
+    nodeIgnoreHeuristics:
+      title: 启发式节点忽略规则
+      description: 跳过那些明显更像代码、链接、文件名、哈希值或纯数字的节点或文本
+      rules:
+        semanticTags:
+          title: 语义化标签过滤
+          description: 跳过 CODE、PRE、KBD、SAMP、SCRIPT、STYLE、NOSCRIPT 等语义区域
+        linkTextTail:
+          title: 链接尾段匹配
+          description: 当链接显示文本与 URL 最后一段完全一致时跳过，例如下载链接里的文件名
+        shortFileLink:
+          title: 短文件链接文本
+          description: 当链接目标本身明显是文件地址，且链接文本不超过 30 个字符时跳过
+        hashLikeOrFileName:
+          title: 哈希或文件名匹配
+          description: 跳过常见的长十六进制哈希，以及明显带有常见文件扩展名的文本
+        versionLike:
+          title: 版本号匹配
+          description: 跳过常见版本号文本，如 v1.2.3、v.2.0、ver.3.1
+        numericLike:
+          title: 纯数字内容
+          description: 跳过仅由数字或数字分隔符组成的内容
+        fileSizeLike:
+          title: 文件大小匹配
+          description: 跳过类似 3.57 MB、128KB 这样的大小文本
     paragraphSegmentation:
       title: 段落切分
       description: 将较长的行内文本拆成多个翻译块，让每段原文下方显示对应译文

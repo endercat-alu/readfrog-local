@@ -2,12 +2,13 @@
 import type { Config } from "@/types/config/config"
 import { describe, expect, it } from "vitest"
 
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { DEFAULT_CONFIG, NODE_IGNORE_HEURISTIC_RULESET_VERSION } from "@/utils/constants/config"
 import {
   BLOCK_CONTENT_CLASS,
   INLINE_CONTENT_CLASS,
   NOTRANSLATE_CLASS,
 } from "@/utils/constants/dom-labels"
+import { shouldIgnoreTextByHeuristics } from "../../translate/node-ignore-heuristics"
 
 import {
   isDontWalkIntoAndDontTranslateAsChildElement,
@@ -102,6 +103,22 @@ function createConfig(range: "main" | "all"): Config {
   return { translate: { page: { range } } } as unknown as Config
 }
 
+function createConfigWithHeuristics(enabledRules: Config["translate"]["page"]["nodeIgnoreHeuristics"]["enabledRules"]): Config {
+  return {
+    ...DEFAULT_CONFIG,
+    translate: {
+      ...DEFAULT_CONFIG.translate,
+      page: {
+        ...DEFAULT_CONFIG.translate.page,
+        nodeIgnoreHeuristics: {
+          rulesetVersion: NODE_IGNORE_HEURISTIC_RULESET_VERSION,
+          enabledRules,
+        },
+      },
+    },
+  }
+}
+
 describe("isDontWalkIntoAndDontTranslateAsChildElement", () => {
   it("should return true for sr-only class", () => {
     const element = document.createElement("span")
@@ -124,6 +141,19 @@ describe("isDontWalkIntoAndDontTranslateAsChildElement", () => {
   it("should return true for SCRIPT tag", () => {
     const element = document.createElement("script")
     expect(isDontWalkIntoAndDontTranslateAsChildElement(element, DEFAULT_CONFIG)).toBe(true)
+  })
+
+  it("should return true for CODE tag when semantic tag heuristic is enabled", () => {
+    const element = document.createElement("code")
+    expect(isDontWalkIntoAndDontTranslateAsChildElement(element, DEFAULT_CONFIG)).toBe(true)
+  })
+
+  it("should return false for CODE tag when semantic tag heuristic is disabled", () => {
+    const element = document.createElement("code")
+    const config = createConfigWithHeuristics(
+      DEFAULT_CONFIG.translate.page.nodeIgnoreHeuristics.enabledRules.filter(rule => rule !== "semanticTags"),
+    )
+    expect(isDontWalkIntoAndDontTranslateAsChildElement(element, config)).toBe(false)
   })
 
   it("should return false for regular elements", () => {
@@ -195,5 +225,133 @@ describe("isDontWalkIntoAndDontTranslateAsChildElement", () => {
     document.body.appendChild(nav)
     expect(isDontWalkIntoAndDontTranslateAsChildElement(nav, createConfig("main"))).toBe(true)
     document.body.removeChild(nav)
+  })
+})
+
+describe("shouldIgnoreTextByHeuristics", () => {
+  it("should ignore link text that matches the url tail", () => {
+    const anchor = document.createElement("a")
+    anchor.href = "https://example.com/downloads/read-frog.zip"
+    anchor.textContent = "read-frog.zip"
+
+    expect(
+      shouldIgnoreTextByHeuristics([anchor], anchor.textContent ?? "", DEFAULT_CONFIG),
+    ).toBe(true)
+  })
+
+  it("should ignore hash-like text", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("0123456789abcdef0123456789abcdef")],
+        "0123456789abcdef0123456789abcdef",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore filename-like text", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("archive.tar.gz")],
+        "archive.tar.gz",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore numeric text", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("1,234,567")],
+        "1,234,567",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore file-size-like text", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("3.57 MB")],
+        "3.57 MB",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore version-like text", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("ver.2.1.0")],
+        "ver.2.1.0",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore short link text when href ends with a file extension", () => {
+    const anchor = document.createElement("a")
+    anchor.href = "https://example.com/downloads/read-frog.zip"
+    anchor.textContent = "Download"
+
+    expect(
+      shouldIgnoreTextByHeuristics([anchor], anchor.textContent ?? "", DEFAULT_CONFIG),
+    ).toBe(true)
+  })
+
+  it("should not ignore long link text when href ends with a file extension", () => {
+    const anchor = document.createElement("a")
+    anchor.href = "https://example.com/downloads/read-frog.zip"
+    anchor.textContent = "Download the latest Read Frog Firefox build now"
+
+    expect(
+      shouldIgnoreTextByHeuristics([anchor], anchor.textContent ?? "", DEFAULT_CONFIG),
+    ).toBe(false)
+  })
+
+  it("should not ignore filename-like text when the rule is disabled", () => {
+    const config = createConfigWithHeuristics(
+      DEFAULT_CONFIG.translate.page.nodeIgnoreHeuristics.enabledRules.filter(rule => rule !== "hashLikeOrFileName"),
+    )
+
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("archive.tar.gz")],
+        "archive.tar.gz",
+        config,
+      ),
+    ).toBe(false)
+  })
+
+  it("should enable newly added rules by default for old ruleset configs", () => {
+    const oldRulesetConfig = {
+      ...DEFAULT_CONFIG,
+      translate: {
+        ...DEFAULT_CONFIG.translate,
+        page: {
+          ...DEFAULT_CONFIG.translate.page,
+          nodeIgnoreHeuristics: {
+            rulesetVersion: 1,
+            enabledRules: ["semanticTags", "linkTextTail", "hashLikeOrFileName", "numericLike"],
+          },
+        },
+      },
+    } satisfies Config
+
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("v.2.1.0")],
+        "v.2.1.0",
+        oldRulesetConfig,
+      ),
+    ).toBe(true)
+
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("3.57 MB")],
+        "3.57 MB",
+        oldRulesetConfig,
+      ),
+    ).toBe(true)
   })
 })
