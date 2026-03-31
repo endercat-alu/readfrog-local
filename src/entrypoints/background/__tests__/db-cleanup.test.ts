@@ -4,10 +4,23 @@ const alarmsGetMock = vi.fn()
 const alarmsCreateMock = vi.fn()
 const alarmsAddListenerMock = vi.fn()
 
-const translationDeleteMock = vi.fn()
+const translationBelowToArrayMock = vi.fn()
 const translationWhereMock = vi.fn()
-const stableTranslationDeleteMock = vi.fn()
+const translationBulkDeleteMock = vi.fn()
+const translationOrderByToArrayMock = vi.fn()
+const translationOrderByLimitMock = vi.fn()
+const translationOrderByMock = vi.fn()
+const translationCountMock = vi.fn()
+
+const stableTranslationBelowToArrayMock = vi.fn()
 const stableTranslationWhereMock = vi.fn()
+const stableTranslationBulkDeleteMock = vi.fn()
+const stableTranslationOrderByToArrayMock = vi.fn()
+const stableTranslationOrderByLimitMock = vi.fn()
+const stableTranslationOrderByMock = vi.fn()
+const stableTranslationAnyOfToArrayMock = vi.fn()
+const stableTranslationCountMock = vi.fn()
+
 const cacheAccessBucketDeleteMock = vi.fn()
 const cacheAccessBucketWhereMock = vi.fn()
 const cacheAccessDeleteMock = vi.fn()
@@ -26,6 +39,7 @@ const summaryWhereMock = vi.fn()
 
 const loggerInfoMock = vi.fn()
 const loggerErrorMock = vi.fn()
+const flushPendingTranslationCacheStateMock = vi.fn()
 
 vi.mock("#imports", () => ({
   browser: {
@@ -55,10 +69,16 @@ vi.mock("@/utils/db/dexie/db", () => ({
   db: {
     translationCache: {
       where: translationWhereMock,
+      bulkDelete: translationBulkDeleteMock,
+      orderBy: translationOrderByMock,
+      count: translationCountMock,
       clear: vi.fn(),
     },
     stableTranslationCache: {
       where: stableTranslationWhereMock,
+      bulkDelete: stableTranslationBulkDeleteMock,
+      orderBy: stableTranslationOrderByMock,
+      count: stableTranslationCountMock,
       clear: vi.fn(),
     },
     cacheAccessRecord: {
@@ -86,6 +106,10 @@ vi.mock("@/utils/db/dexie/db", () => ({
   },
 }))
 
+vi.mock("../translation-queues", () => ({
+  flushPendingTranslationCacheState: flushPendingTranslationCacheStateMock,
+}))
+
 vi.mock("@/utils/logger", () => ({
   logger: {
     info: loggerInfoMock,
@@ -100,18 +124,49 @@ describe("setUpDatabaseCleanup", () => {
 
     alarmsGetMock.mockResolvedValue(null)
     alarmsCreateMock.mockResolvedValue(undefined)
+    flushPendingTranslationCacheStateMock.mockResolvedValue(undefined)
 
-    translationDeleteMock.mockResolvedValue(0)
-    translationWhereMock.mockReturnValue({
-      below: () => ({
-        delete: translationDeleteMock,
-      }),
+    translationBelowToArrayMock.mockResolvedValue([])
+    translationBulkDeleteMock.mockResolvedValue(undefined)
+    translationOrderByToArrayMock.mockResolvedValue([])
+    translationOrderByLimitMock.mockReturnValue({
+      toArray: translationOrderByToArrayMock,
     })
-    stableTranslationDeleteMock.mockResolvedValue(0)
-    stableTranslationWhereMock.mockReturnValue({
+    translationOrderByMock.mockReturnValue({
+      limit: translationOrderByLimitMock,
+    })
+
+    stableTranslationBelowToArrayMock.mockResolvedValue([])
+    stableTranslationBulkDeleteMock.mockResolvedValue(undefined)
+    stableTranslationOrderByToArrayMock.mockResolvedValue([])
+    stableTranslationOrderByLimitMock.mockReturnValue({
+      toArray: stableTranslationOrderByToArrayMock,
+    })
+    stableTranslationOrderByMock.mockReturnValue({
+      limit: stableTranslationOrderByLimitMock,
+    })
+    stableTranslationAnyOfToArrayMock.mockResolvedValue([])
+    translationCountMock.mockResolvedValue(0)
+    stableTranslationCountMock.mockResolvedValue(0)
+    translationWhereMock.mockImplementation((indexName: string) => ({
       below: () => ({
-        delete: stableTranslationDeleteMock,
+        toArray: translationBelowToArrayMock,
       }),
+    }))
+    stableTranslationWhereMock.mockImplementation((indexName: string) => {
+      if (indexName === "exactKey") {
+        return {
+          anyOf: () => ({
+            toArray: stableTranslationAnyOfToArrayMock,
+          }),
+        }
+      }
+
+      return {
+        below: () => ({
+          toArray: stableTranslationBelowToArrayMock,
+        }),
+      }
     })
     cacheAccessBucketDeleteMock.mockResolvedValue(0)
     cacheAccessBucketWhereMock.mockReturnValue({

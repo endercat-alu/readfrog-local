@@ -28,15 +28,25 @@ const TRANSLATION_MEMORY_CACHE_TTL_MS = 30 * 60 * 1000
 const CACHE_INSPECTION_LIMIT = 50
 const TRANSLATION_PERSIST_FLUSH_DELAY_MS = 300
 const TRANSLATION_PERSIST_FLUSH_BATCH_SIZE = 20
+const TRANSLATION_ACCESS_TOUCH_FLUSH_DELAY_MS = 1000
+const TRANSLATION_ACCESS_TOUCH_FLUSH_BATCH_SIZE = 50
 const CACHE_STATS_FLUSH_DELAY_MS = 1000
 const CACHE_STATS_BUCKET_MS = 60 * 1000
+const STABLE_TRANSLATION_BACKING_KEY_PREFIX = "stable-backing:"
 
 type CacheRangeKey = "1H" | "12H" | "1D" | "7D" | "14D"
 type CacheAccessEventType = "exactL1Hit" | "exactL2Hit" | "stableL1Hit" | "stableL2Hit" | "miss"
 type PendingTranslationWrite = {
   key: string
   createdAt: Date
+  lastAccessedAt: Date
   translation: string
+}
+type PendingStableTranslationAliasWrite = {
+  key: string
+  exactKey: string
+  createdAt: Date
+  lastAccessedAt: Date
 }
 type CacheStatsBucketInput = {
   key: string
@@ -58,10 +68,14 @@ const stableTranslationMemoryCache = new LruTtlCache<string, string>(
 )
 
 const pendingExactTranslationWrites = new Map<string, PendingTranslationWrite>()
-const pendingStableTranslationWrites = new Map<string, PendingTranslationWrite>()
+const pendingStableTranslationWrites = new Map<string, PendingStableTranslationAliasWrite>()
+const pendingExactTranslationTouches = new Map<string, Date>()
+const pendingStableTranslationTouches = new Map<string, Date>()
 const pendingCacheStatsBuckets = new Map<string, CacheStatsBucketInput>()
 let translationPersistFlushTimer: ReturnType<typeof setTimeout> | null = null
 let translationPersistFlushPromise: Promise<void> | null = null
+let translationAccessTouchFlushTimer: ReturnType<typeof setTimeout> | null = null
+let translationAccessTouchFlushPromise: Promise<void> | null = null
 let cacheStatsFlushTimer: ReturnType<typeof setTimeout> | null = null
 let cacheStatsFlushPromise: Promise<void> | null = null
 
@@ -124,6 +138,65 @@ function scheduleTranslationPersistFlush() {
   }
 }
 
+function scheduleTranslationAccessTouchFlush() {
+  if (pendingExactTranslationTouches.size + pendingStableTranslationTouches.size >= TRANSLATION_ACCESS_TOUCH_FLUSH_BATCH_SIZE) {
+    void flushPendingTranslationAccessTouches()
+    return
+  }
+
+  if (!translationAccessTouchFlushTimer) {
+    translationAccessTouchFlushTimer = setTimeout(() => {
+      translationAccessTouchFlushTimer = null
+      void flushPendingTranslationAccessTouches()
+    }, TRANSLATION_ACCESS_TOUCH_FLUSH_DELAY_MS)
+  }
+}
+
+function buildStableBackingTranslationKey(stableCacheKey: string): string {
+  return `${STABLE_TRANSLATION_BACKING_KEY_PREFIX}${stableCacheKey}`
+}
+
+function getPersistedTranslationKey(hash?: string, stableCacheKey?: string): string | undefined {
+  if (hash) {
+    return hash
+  }
+
+  if (stableCacheKey) {
+    return buildStableBackingTranslationKey(stableCacheKey)
+  }
+
+  return undefined
+}
+
+function recordPendingLastAccessedAt(map: Map<string, Date>, key: string, lastAccessedAt: Date) {
+  const existing = map.get(key)
+  if (!existing || existing < lastAccessedAt) {
+    map.set(key, lastAccessedAt)
+  }
+}
+
+function touchExactTranslationCacheEntry(key: string, lastAccessedAt: Date = new Date()) {
+  const pendingWrite = pendingExactTranslationWrites.get(key)
+  if (pendingWrite) {
+    pendingWrite.lastAccessedAt = lastAccessedAt
+    return
+  }
+
+  recordPendingLastAccessedAt(pendingExactTranslationTouches, key, lastAccessedAt)
+  scheduleTranslationAccessTouchFlush()
+}
+
+function touchStableTranslationCacheEntry(key: string, lastAccessedAt: Date = new Date()) {
+  const pendingWrite = pendingStableTranslationWrites.get(key)
+  if (pendingWrite) {
+    pendingWrite.lastAccessedAt = lastAccessedAt
+    return
+  }
+
+  recordPendingLastAccessedAt(pendingStableTranslationTouches, key, lastAccessedAt)
+  scheduleTranslationAccessTouchFlush()
+}
+
 async function flushPendingTranslationWrites(): Promise<void> {
   if (translationPersistFlushTimer) {
     clearTimeout(translationPersistFlushTimer)
@@ -168,6 +241,98 @@ async function flushPendingTranslationWrites(): Promise<void> {
   })()
 
   await translationPersistFlushPromise
+}
+
+async function flushPendingTranslationAccessTouches(): Promise<void> {
+  if (translationAccessTouchFlushTimer) {
+    clearTimeout(translationAccessTouchFlushTimer)
+    translationAccessTouchFlushTimer = null
+  }
+
+  if (translationAccessTouchFlushPromise) {
+    await translationAccessTouchFlushPromise
+  }
+
+  if (pendingExactTranslationTouches.size === 0 && pendingStableTranslationTouches.size === 0) {
+    return
+  }
+
+  const exactTouches = Array.from(pendingExactTranslationTouches.entries())
+  const stableTouches = Array.from(pendingStableTranslationTouches.entries())
+  pendingExactTranslationTouches.clear()
+  pendingStableTranslationTouches.clear()
+
+  translationAccessTouchFlushPromise = (async () => {
+    try {
+      await Promise.all([
+        applyExactTranslationTouches(exactTouches),
+        applyStableTranslationTouches(stableTouches),
+      ])
+    }
+    catch (error) {
+      for (const [key, lastAccessedAt] of exactTouches) {
+        recordPendingLastAccessedAt(pendingExactTranslationTouches, key, lastAccessedAt)
+      }
+      for (const [key, lastAccessedAt] of stableTouches) {
+        recordPendingLastAccessedAt(pendingStableTranslationTouches, key, lastAccessedAt)
+      }
+      logger.warn("Failed to flush translation cache access touches:", error)
+    }
+    finally {
+      translationAccessTouchFlushPromise = null
+      if (pendingExactTranslationTouches.size > 0 || pendingStableTranslationTouches.size > 0) {
+        scheduleTranslationAccessTouchFlush()
+      }
+    }
+  })()
+
+  await translationAccessTouchFlushPromise
+}
+
+async function applyExactTranslationTouches(touches: Array<[string, Date]>): Promise<void> {
+  if (touches.length === 0) {
+    return
+  }
+
+  const keys = touches.map(([key]) => key)
+  const rows = await db.translationCache.bulkGet(keys)
+  const nextRows = rows.flatMap((row, index) => {
+    if (!row) {
+      return []
+    }
+
+    return [{
+      ...row,
+      lastAccessedAt: touches[index]![1],
+    }]
+  })
+
+  if (nextRows.length > 0) {
+    await db.translationCache.bulkPut(nextRows)
+  }
+}
+
+async function applyStableTranslationTouches(touches: Array<[string, Date]>): Promise<void> {
+  if (touches.length === 0) {
+    return
+  }
+
+  const keys = touches.map(([key]) => key)
+  const rows = await db.stableTranslationCache.bulkGet(keys)
+  const nextRows = rows.flatMap((row, index) => {
+    if (!row) {
+      return []
+    }
+
+    return [{
+      ...row,
+      lastAccessedAt: touches[index]![1],
+    }]
+  })
+
+  if (nextRows.length > 0) {
+    await db.stableTranslationCache.bulkPut(nextRows)
+  }
 }
 
 function enqueueCacheAccessEvent(eventType: CacheAccessEventType) {
@@ -325,6 +490,7 @@ async function getCachedTranslation(hash?: string): Promise<TranslationResult | 
   }
 
   exactTranslationMemoryCache.set(hash, persisted.translation)
+  touchExactTranslationCacheEntry(hash)
   enqueueCacheAccessEvent("exactL2Hit")
   return createTranslationResult(persisted.translation, { layer: "l2", cacheType: "exact" })
 }
@@ -340,12 +506,20 @@ async function getCachedStableTranslation(stableCacheKey?: string): Promise<Tran
     return createTranslationResult(memoryCached, { layer: "l1", cacheType: "stable" })
   }
 
-  const persisted = await db.stableTranslationCache.get(stableCacheKey)
+  const alias = await db.stableTranslationCache.get(stableCacheKey)
+  if (!alias) {
+    return undefined
+  }
+
+  const persisted = await db.translationCache.get(alias.exactKey)
   if (!persisted) {
+    await db.stableTranslationCache.delete(stableCacheKey)
     return undefined
   }
 
   stableTranslationMemoryCache.set(stableCacheKey, persisted.translation)
+  touchStableTranslationCacheEntry(stableCacheKey)
+  touchExactTranslationCacheEntry(alias.exactKey)
   enqueueCacheAccessEvent("stableL2Hit")
   return createTranslationResult(persisted.translation, { layer: "l2", cacheType: "stable" })
 }
@@ -359,23 +533,26 @@ function persistTranslationResult(hash: string | undefined, stableCacheKey: stri
   setStableTranslationCache(stableCacheKey, translation)
 
   const createdAt = new Date()
-  if (hash) {
-    pendingExactTranslationWrites.set(hash, {
-      key: hash,
+  const exactPersistKey = getPersistedTranslationKey(hash, stableCacheKey)
+  if (exactPersistKey) {
+    pendingExactTranslationWrites.set(exactPersistKey, {
+      key: exactPersistKey,
       translation,
       createdAt,
+      lastAccessedAt: createdAt,
     })
   }
 
-  if (stableCacheKey) {
+  if (stableCacheKey && exactPersistKey) {
     pendingStableTranslationWrites.set(stableCacheKey, {
       key: stableCacheKey,
-      translation,
+      exactKey: exactPersistKey,
       createdAt,
+      lastAccessedAt: createdAt,
     })
   }
 
-  if (hash || stableCacheKey) {
+  if (exactPersistKey) {
     scheduleTranslationPersistFlush()
   }
 }
@@ -385,11 +562,25 @@ export function clearTranslationMemoryCaches() {
   stableTranslationMemoryCache.clear()
   pendingExactTranslationWrites.clear()
   pendingStableTranslationWrites.clear()
+  pendingExactTranslationTouches.clear()
+  pendingStableTranslationTouches.clear()
 
   if (translationPersistFlushTimer) {
     clearTimeout(translationPersistFlushTimer)
     translationPersistFlushTimer = null
   }
+
+  if (translationAccessTouchFlushTimer) {
+    clearTimeout(translationAccessTouchFlushTimer)
+    translationAccessTouchFlushTimer = null
+  }
+}
+
+export async function flushPendingTranslationCacheState() {
+  await Promise.all([
+    flushPendingTranslationWrites(),
+    flushPendingTranslationAccessTouches(),
+  ])
 }
 
 function createEmptyStats() {
@@ -407,7 +598,7 @@ function createEmptyStats() {
 
 async function getTranslationCacheOverview(rangeKey: CacheRangeKey): Promise<TranslationCacheOverview> {
   await Promise.all([
-    flushPendingTranslationWrites(),
+    flushPendingTranslationCacheState(),
     flushCacheAccessEvents(),
   ])
   const range = getRangeMeta(rangeKey)
@@ -488,6 +679,27 @@ function createL1TablePreview(
   }
 }
 
+async function createStableL2TablePreview(limit: number): Promise<TranslationCacheTablePreview> {
+  const [count, aliases] = await Promise.all([
+    db.stableTranslationCache.count(),
+    db.stableTranslationCache.orderBy("lastAccessedAt").reverse().limit(limit).toArray(),
+  ])
+  const exactEntries = await db.translationCache.bulkGet(aliases.map(entry => entry.exactKey))
+
+  return {
+    id: "l2-stable",
+    title: "L2 Shared Text Cache",
+    count,
+    limited: count > limit,
+    entries: aliases.map((entry, index) => ({
+      key: entry.key,
+      value: exactEntries[index]?.translation ?? "",
+      createdAt: entry.createdAt?.getTime(),
+      lastAccessedAt: entry.lastAccessedAt?.getTime(),
+    })),
+  }
+}
+
 async function getTranslationCacheInspection(layer: "l1" | "l2", limit: number = CACHE_INSPECTION_LIMIT): Promise<TranslationCacheInspection> {
   if (layer === "l1") {
     return {
@@ -501,14 +713,13 @@ async function getTranslationCacheInspection(layer: "l1" | "l2", limit: number =
     }
   }
 
-  await flushPendingTranslationWrites()
+  await flushPendingTranslationCacheState()
 
-  const [exactCount, stableCount, summaryCount, exactEntries, stableEntries, summaryEntries] = await Promise.all([
+  const [exactCount, summaryCount, exactEntries, stableTable, summaryEntries] = await Promise.all([
     db.translationCache.count(),
-    db.stableTranslationCache.count(),
     db.articleSummaryCache.count(),
-    db.translationCache.orderBy("createdAt").reverse().limit(limit).toArray(),
-    db.stableTranslationCache.orderBy("createdAt").reverse().limit(limit).toArray(),
+    db.translationCache.orderBy("lastAccessedAt").reverse().limit(limit).toArray(),
+    createStableL2TablePreview(limit),
     db.articleSummaryCache.orderBy("createdAt").reverse().limit(limit).toArray(),
   ])
 
@@ -526,19 +737,10 @@ async function getTranslationCacheInspection(layer: "l1" | "l2", limit: number =
           key: entry.key,
           value: entry.translation,
           createdAt: entry.createdAt?.getTime(),
+          lastAccessedAt: entry.lastAccessedAt?.getTime(),
         })),
       },
-      {
-        id: "l2-stable",
-        title: "L2 Shared Text Cache",
-        count: stableCount,
-        limited: stableCount > limit,
-        entries: stableEntries.map(entry => ({
-          key: entry.key,
-          value: entry.translation,
-          createdAt: entry.createdAt?.getTime(),
-        })),
-      },
+      stableTable,
       {
         id: "l2-summary",
         title: "L2 Article Summary Cache",

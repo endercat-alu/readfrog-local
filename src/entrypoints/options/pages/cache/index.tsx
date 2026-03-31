@@ -228,7 +228,7 @@ export function CachePage() {
                               <div className="font-mono text-xs whitespace-pre-wrap break-all">{entry.value}</div>
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                              {filteredInspection.layer === "l1" ? formatExpiry(entry.expiresAt) : formatTimestamp(entry.createdAt)}
+                              {filteredInspection.layer === "l1" ? formatExpiry(entry.expiresAt) : formatTimestamp(entry.lastAccessedAt ?? entry.createdAt)}
                             </TableCell>
                           </TableRow>
                         ))}

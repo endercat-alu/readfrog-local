@@ -7,6 +7,7 @@ import CacheAccessBucket from "./tables/cache-access-bucket"
 import ArticleSummaryCache from "./tables/article-summary-cache"
 import BatchRequestRecord from "./tables/batch-request-record"
 import CacheAccessRecord from "./tables/cache-access-record"
+import StableTranslationCacheAlias from "./tables/stable-translation-cache-alias"
 import TranslationCache from "./tables/translation-cache"
 
 export default class AppDB extends Dexie {
@@ -16,7 +17,7 @@ export default class AppDB extends Dexie {
   >
 
   stableTranslationCache!: EntityTable<
-    TranslationCache,
+    StableTranslationCacheAlias,
     "key"
   >
 
@@ -175,8 +176,38 @@ export default class AppDB extends Dexie {
         key,
         createdAt`,
     })
+    this.version(8).stores({
+      translationCache: `
+        key,
+        createdAt,
+        lastAccessedAt`,
+      stableTranslationCache: `
+        key,
+        exactKey,
+        createdAt,
+        lastAccessedAt`,
+      batchRequestRecord: `
+        key,
+        createdAt,
+        originalRequestCount,
+        provider,
+        model`,
+      cacheAccessRecord: `
+        key,
+        createdAt,
+        eventType`,
+      cacheAccessBucket: `
+        key,
+        bucketStart`,
+      articleSummaryCache: `
+        key,
+        createdAt`,
+      aiSegmentationCache: `
+        key,
+        createdAt`,
+    })
     this.translationCache.mapToClass(TranslationCache)
-    this.stableTranslationCache.mapToClass(TranslationCache)
+    this.stableTranslationCache.mapToClass(StableTranslationCacheAlias)
     this.batchRequestRecord.mapToClass(BatchRequestRecord)
     this.cacheAccessRecord.mapToClass(CacheAccessRecord)
     this.cacheAccessBucket.mapToClass(CacheAccessBucket)

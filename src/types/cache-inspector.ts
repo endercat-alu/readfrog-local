@@ -29,6 +29,7 @@ export interface TranslationCacheEntryPreview {
   key: string
   value: string
   createdAt?: number
+  lastAccessedAt?: number
   expiresAt?: number
 }
 
