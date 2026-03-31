@@ -3,13 +3,21 @@ import { z } from "zod"
 import { GOOGLE_DRIVE_TOKEN_STORAGE_KEY } from "../constants/config"
 import { logger } from "../logger"
 
-const GOOGLE_CLIENT_ID = import.meta.env.WXT_GOOGLE_CLIENT_ID || "YOUR_CLIENT_ID"
+const GOOGLE_CLIENT_ID = import.meta.env.WXT_GOOGLE_CLIENT_ID?.trim() || ""
 const GOOGLE_REDIRECT_URI = browser.identity.getRedirectURL()
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/drive.appdata",
   "https://www.googleapis.com/auth/userinfo.email",
 ]
 const TOKEN_EXPIRY_BUFFER_MS = 60000
+
+export const isGoogleDriveAuthConfigured = GOOGLE_CLIENT_ID.length > 0
+
+function assertGoogleDriveAuthConfigured(): void {
+  if (!isGoogleDriveAuthConfigured) {
+    throw new Error("Google Drive sync is unavailable in this build")
+  }
+}
 
 const googleAuthTokenSchema = z.object({
   access_token: z.string(),
@@ -56,6 +64,8 @@ async function getTokenFromStorage(): Promise<GoogleAuthToken | null> {
  */
 export async function authenticateGoogleDriveAndSaveTokenToStorage(): Promise<string> {
   try {
+    assertGoogleDriveAuthConfigured()
+
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth")
     authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID)
     authUrl.searchParams.set("response_type", "token")
@@ -106,6 +116,8 @@ export async function authenticateGoogleDriveAndSaveTokenToStorage(): Promise<st
  */
 export async function getValidAccessToken(): Promise<string> {
   try {
+    assertGoogleDriveAuthConfigured()
+
     const tokenData = await getTokenFromStorage()
 
     // Re-authenticate if token not found or expiring soon (within 1 minute)
@@ -137,6 +149,10 @@ export async function clearAccessToken(): Promise<void> {
  */
 export async function getIsAuthenticated(): Promise<boolean> {
   try {
+    if (!isGoogleDriveAuthConfigured) {
+      return false
+    }
+
     const tokenData = await getTokenFromStorage()
 
     if (!tokenData) {

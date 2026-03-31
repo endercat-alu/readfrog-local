@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/base-ui/button"
 import { useGoogleDriveAuth } from "@/hooks/use-google-drive-auth"
 import { resolutionsAtom, unresolvedConfigsAtom } from "@/utils/atoms/google-drive-sync"
 import { lastSyncTimeAtom } from "@/utils/atoms/last-sync-time"
-import { clearAccessToken } from "@/utils/google-drive/auth"
+import { clearAccessToken, isGoogleDriveAuthConfigured } from "@/utils/google-drive/auth"
 import { syncConfig } from "@/utils/google-drive/sync"
 import { logger } from "@/utils/logger"
 import { ConfigCard } from "../../../components/config-card"
@@ -94,7 +94,7 @@ export function GoogleDriveSyncCard() {
             <div className="flex gap-2">
               <Button
                 onClick={handleSync}
-                disabled={isSyncing}
+                disabled={isSyncing || !isGoogleDriveAuthConfigured}
               >
                 <Icon icon="logos:google-drive" className="size-4" />
                 {isSyncing
