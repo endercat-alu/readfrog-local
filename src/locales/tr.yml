@@ -70,10 +70,6 @@ options:
   setAPIKeyWarning:
     please: Lütfen API Anahtarını
     page: sayfasında ayarlayın
-  betaExperience:
-    title: Beta Deneyimi
-    description: Deneysel özellikleri ve yeni işlevlere erken erişimi etkinleştirin. Bu özellikler kararsız veya eksik olabilir.
-    enabled: Beta Deneyimini Etkinleştir
   apiProviders:
     title: API Sağlayıcıları
     description: Çeviri ve kelime analizi işlevleri için API sağlayıcılarını buradan yapılandırın. 20'den fazla yerleşik sağlayıcımız var ve OpenAI uyumlu tüm API sağlayıcılarını destekliyoruz.
@@ -574,7 +570,6 @@ options:
     volume:
       label: Ses Düzeyi (%)
       hint: -100 ile 100 arasında tam sayı değerleri kabul eder
-    betaDisabled: Metinden konuşmaya ayarlarını özelleştirmek için Beta Deneyimini etkinleştirin.
   statistics:
     title: İstatistikler
     batchRequest:

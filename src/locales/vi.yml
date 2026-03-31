@@ -70,10 +70,6 @@ options:
   setAPIKeyWarning:
     please: Vui lòng đặt API Key trên trang
     page: cài đặt
-  betaExperience:
-    title: Trải nghiệm Beta
-    description: Bật các tính năng thử nghiệm và truy cập sớm các chức năng mới. Các tính năng này có thể không ổn định hoặc chưa hoàn chỉnh.
-    enabled: Bật trải nghiệm Beta
   apiProviders:
     title: Nhà cung cấp API
     description: Cấu hình các nhà cung cấp API cho chức năng dịch và phân tích từ vựng tại đây. Chúng tôi có hơn 20 nhà cung cấp tích hợp sẵn và hỗ trợ mọi API tương thích OpenAI.
@@ -574,7 +570,6 @@ options:
     volume:
       label: Âm lượng (%)
       hint: Chấp nhận giá trị số nguyên từ -100 đến 100
-    betaDisabled: Bật Trải nghiệm Beta để tùy chỉnh cài đặt chuyển văn bản thành giọng nói.
   statistics:
     title: Thống kê
     batchRequest:

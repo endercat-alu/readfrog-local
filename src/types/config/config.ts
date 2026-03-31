@@ -47,11 +47,6 @@ const sideContentSchema = z.object({
   width: z.number().min(MIN_SIDE_CONTENT_WIDTH),
 })
 
-// beta experience schema
-const betaExperienceSchema = z.object({
-  enabled: z.boolean(),
-})
-
 // context menu schema
 const contextMenuSchema = z.object({
   enabled: z.boolean(),
@@ -94,7 +89,6 @@ export const configSchema = z.object({
   floatingButton: floatingButtonSchema,
   selectionToolbar: selectionToolbarSchema,
   sideContent: sideContentSchema,
-  betaExperience: betaExperienceSchema,
   contextMenu: contextMenuSchema,
   inputTranslation: inputTranslationSchema,
   videoSubtitles: videoSubtitlesSchema,

@@ -75,10 +75,6 @@ options:
   setAPIKeyWarning:
     please: Please set API Key on
     page: page
-  betaExperience:
-    title: Beta Experience
-    description: Enable experimental features and early access to new functionality. These features may be unstable or incomplete.
-    enabled: Enable Beta Experience
   apiProviders:
     title: API Providers
     description: Configure API providers for translation and vocabulary insight. We have 20+ built-in providers and support any OpenAI-compatible API provider.
@@ -766,7 +762,6 @@ options:
     volume:
       label: Volume (%)
       hint: Accepts integer values between -100 and 100
-    betaDisabled: Enable Beta Experience to customize text-to-speech settings.
   statistics:
     title: Statistics
     batchRequest:

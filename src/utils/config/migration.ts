@@ -68,6 +68,7 @@ import { migrate as migrateV061ToV062 } from "./migration-scripts/v061-to-v062"
 import { migrate as migrateV062ToV063 } from "./migration-scripts/v062-to-v063"
 import { migrate as migrateV063ToV064 } from "./migration-scripts/v063-to-v064"
 import { migrate as migrateV064ToV065 } from "./migration-scripts/v064-to-v065"
+import { migrate as migrateV065ToV066 } from "./migration-scripts/v065-to-v066"
 
 export const LATEST_SCHEMA_VERSION = CONFIG_SCHEMA_VERSION
 
@@ -139,6 +140,7 @@ export const migrationScripts: Record<number, MigrationFunction> = {
   63: migrateV062ToV063,
   64: migrateV063ToV064,
   65: migrateV064ToV065,
+  66: migrateV065ToV066,
 }
 
 export async function runMigration(version: number, config: any): Promise<any> {

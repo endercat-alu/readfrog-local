@@ -296,15 +296,7 @@ export const SEARCH_ITEMS: SearchItem[] = [
         pageKey: "options.tts.title",
       }]
     : []),
-
   // Config page
-  {
-    sectionId: "beta-experience",
-    route: "/config",
-    titleKey: "options.betaExperience.title",
-    descriptionKey: "options.betaExperience.description",
-    pageKey: "options.config.title",
-  },
   {
     sectionId: "google-drive-sync",
     route: "/config",

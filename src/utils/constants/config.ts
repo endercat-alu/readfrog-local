@@ -18,7 +18,7 @@ export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 export const THEME_STORAGE_KEY = "theme"
 export const DETECTED_CODE_STORAGE_KEY = "detectedCode"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 65
+export const CONFIG_SCHEMA_VERSION = 66
 
 export const NODE_IGNORE_HEURISTIC_RULESET_VERSION = 3
 
@@ -169,9 +169,6 @@ export const DEFAULT_CONFIG: Config = {
   },
   sideContent: {
     width: DEFAULT_SIDE_CONTENT_WIDTH,
-  },
-  betaExperience: {
-    enabled: false,
   },
   contextMenu: {
     enabled: true,

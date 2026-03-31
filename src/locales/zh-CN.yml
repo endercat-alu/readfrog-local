@@ -75,10 +75,6 @@ options:
   setAPIKeyWarning:
     please: 请在
     page: 页设置 API Key
-  betaExperience:
-    title: Beta 体验
-    description: 启用实验性功能和早期访问新功能。这些功能可能不稳定或不完整。
-    enabled: 启用 Beta 体验
   apiProviders:
     title: API 提供商
     description: 配置用于翻译和词汇解析功能的 API 提供商。我们内置了 20 多个提供商，并支持任何 OpenAI 兼容 API 提供商。
@@ -766,7 +762,6 @@ options:
     volume:
       label: 音量 (%)
       hint: 支持 -100 到 100 的整数
-    betaDisabled: 启用测试体验后即可自定义文本转语音设置。
   statistics:
     title: 统计
     batchRequest:
