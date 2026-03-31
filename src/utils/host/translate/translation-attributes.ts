@@ -2,10 +2,13 @@ import type { Config } from "@/types/config/config"
 import { getLanguageDirectionAndLang } from "@/utils/content/language-direction"
 
 export function setTranslationDirAndLang(element: HTMLElement, config: Config): void {
-  const { dir, lang } = getLanguageDirectionAndLang(config.language.targetCode)
-  element.setAttribute("dir", dir)
+  const { dir } = getLanguageDirectionAndLang(config.language.targetCode)
+  element.style.unicodeBidi = "plaintext"
 
-  if (lang) {
-    element.setAttribute("lang", lang)
+  if (dir === "rtl") {
+    element.style.direction = dir
+  }
+  else {
+    element.style.removeProperty("direction")
   }
 }

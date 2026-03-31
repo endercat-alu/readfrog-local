@@ -5,7 +5,7 @@ import textSmallCSS from "@/assets/styles/text-small.css?inline"
 import themeCSS from "@/assets/styles/theme.css?inline"
 import { TranslationError } from "@/components/translation/error"
 import { createReactShadowHost } from "@/utils/react-shadow-host/create-shadow-host"
-import { TRANSLATION_ERROR_CONTAINER_CLASS } from "../../../constants/dom-labels"
+import { SPINNER_CLASS, TRANSLATION_ERROR_CONTAINER_CLASS } from "../../../constants/dom-labels"
 import { getOwnerDocument } from "../../dom/node"
 import { translateTextForPageWithResult } from "../translate-variants"
 
@@ -16,7 +16,7 @@ import { translateTextForPageWithResult } from "../translate-variants"
  */
 export function createLightweightSpinner(ownerDoc: Document): HTMLElement {
   const spinner = ownerDoc.createElement("span")
-  spinner.className = "read-frog-spinner"
+  spinner.className = SPINNER_CLASS
   // Inline styles to match the original spinner design
   // add important to make the styles don't get overridden by the host page styles,
   // Otherwise, in some page like https://www.reddit.com/r/canadaexpressentry/, some spinners size will be overridden by the host page styles.

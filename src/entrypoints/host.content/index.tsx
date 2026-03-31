@@ -30,7 +30,6 @@ import { PageTranslationManager } from "./translation-control/page-translation"
 import { setCacheHitDebugEnabled } from "@/utils/host/translate/cache-hit-debug"
 import "@/utils/crypto-polyfill"
 import "./listen"
-import "./style.css"
 
 function HydrateAtoms({
   initialValues,

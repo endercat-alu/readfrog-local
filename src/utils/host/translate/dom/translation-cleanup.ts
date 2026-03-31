@@ -1,4 +1,4 @@
-import { CONTENT_WRAPPER_CLASS, REACT_SHADOW_HOST_CLASS, TRANSLATION_ERROR_CONTAINER_CLASS, TRANSLATION_MODE_ATTRIBUTE, WALKED_ATTRIBUTE } from "../../../constants/dom-labels"
+import { CONTENT_WRAPPER_CLASS, REACT_SHADOW_HOST_CLASS, SPINNER_CLASS, TRANSLATION_ERROR_CONTAINER_CLASS, TRANSLATION_MODE_ATTRIBUTE, TRANSLATION_MODE_VALUE, WALKED_ATTRIBUTE } from "../../../constants/dom-labels"
 import { removeReactShadowHost } from "../../../react-shadow-host/create-shadow-host"
 import { batchDOMOperation } from "../../dom/batch-dom"
 import { isHTMLElement } from "../../dom/filter"
@@ -24,7 +24,7 @@ export function removeShadowHostInTranslatedWrapper(wrapper: HTMLElement): void 
   }
 
   // Remove lightweight spinners
-  const spinner = wrapper.querySelector(".read-frog-spinner")
+  const spinner = wrapper.querySelector(`.${SPINNER_CLASS}`)
   if (spinner) {
     batchDOMOperation(() => spinner.remove())
   }
@@ -43,7 +43,7 @@ export function removeTranslatedWrapperWithRestore(
 
   const translationMode = wrapper.getAttribute(TRANSLATION_MODE_ATTRIBUTE)
 
-  if (translationMode === "translationOnly" && restoreOriginalContent) {
+  if (translationMode === TRANSLATION_MODE_VALUE.translationOnly && restoreOriginalContent) {
     // For translation-only mode, find nearest ancestor in originalContentMap and restore
     let currentNode = wrapper.parentNode
 
@@ -66,7 +66,7 @@ export function removeTranslatedWrapperWithRestore(
 }
 
 export function shouldRestoreOriginalContentForWrapper(wrapper: HTMLElement): boolean {
-  return !wrapper.querySelector(`.${TRANSLATION_ERROR_CONTAINER_CLASS}`) && !wrapper.querySelector(".read-frog-spinner")
+  return !wrapper.querySelector(`.${TRANSLATION_ERROR_CONTAINER_CLASS}`) && !wrapper.querySelector(`.${SPINNER_CLASS}`)
 }
 
 function shouldCleanupWrapper(node: HTMLElement, walkId?: string): boolean {

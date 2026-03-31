@@ -1,10 +1,10 @@
 import type { Config } from "@/types/config/config"
-import type { TranslationMode } from "@/types/config/translate"
 import type { TransNode } from "@/types/dom"
 import {
   CONTENT_WRAPPER_CLASS,
   NOTRANSLATE_CLASS,
   TRANSLATION_MODE_ATTRIBUTE,
+  TRANSLATION_MODE_VALUE,
   WALKED_ATTRIBUTE,
 } from "../../../constants/dom-labels"
 import { batchDOMOperation, flushBatchedOperations } from "../../dom/batch-dom"
@@ -103,7 +103,7 @@ export async function translateNodesBilingualMode(
     const ownerDoc = getOwnerDocument(targetNode)
     const translatedWrapperNode = ownerDoc.createElement("span")
     translatedWrapperNode.className = `${NOTRANSLATE_CLASS} ${CONTENT_WRAPPER_CLASS}`
-    translatedWrapperNode.setAttribute(TRANSLATION_MODE_ATTRIBUTE, "bilingual" satisfies TranslationMode)
+    translatedWrapperNode.setAttribute(TRANSLATION_MODE_ATTRIBUTE, TRANSLATION_MODE_VALUE.bilingual)
     translatedWrapperNode.setAttribute(WALKED_ATTRIBUTE, walkId)
     setTranslationDirAndLang(translatedWrapperNode, config)
     const spinner = createSpinnerInside(translatedWrapperNode)
@@ -285,7 +285,7 @@ export async function translateNodeTranslationOnlyMode(
     const ownerDoc = getOwnerDocument(targetNode)
     const translatedWrapperNode = ownerDoc.createElement("span")
     translatedWrapperNode.className = `${NOTRANSLATE_CLASS} ${CONTENT_WRAPPER_CLASS}`
-    translatedWrapperNode.setAttribute(TRANSLATION_MODE_ATTRIBUTE, "translationOnly" satisfies TranslationMode)
+    translatedWrapperNode.setAttribute(TRANSLATION_MODE_ATTRIBUTE, TRANSLATION_MODE_VALUE.translationOnly)
     translatedWrapperNode.setAttribute(WALKED_ATTRIBUTE, walkId)
     translatedWrapperNode.style.display = "contents"
     setTranslationDirAndLang(translatedWrapperNode, config)

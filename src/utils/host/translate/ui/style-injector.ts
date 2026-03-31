@@ -1,11 +1,28 @@
-import customTranslationNodeCss from "@/assets/styles/custom-translation-node.css?raw"
 import hostThemeCss from "@/assets/styles/host-theme.css?raw"
+import {
+  BLOCK_CONTENT_CLASS,
+  CACHE_HIT_DEBUG_BADGE_CLASS,
+  CACHE_HIT_DEBUG_TARGET_CLASS,
+  CACHE_HIT_DEBUG_WRAPPER_CLASS,
+  CONTENT_WRAPPER_CLASS,
+  INLINE_CONTENT_CLASS,
+  createObfuscatedClassName,
+} from "@/utils/constants/dom-labels"
+import {
+  CUSTOM_TRANSLATION_NODE_CLASS,
+  LEGACY_CUSTOM_TRANSLATION_NODE_SELECTOR_REGEX,
+  TRANSLATION_NODE_STYLE_CLASS_MAP,
+} from "@/utils/constants/translation-node-style"
 
 type StyleRoot = Document | ShadowRoot
 
 // ============ Utilities ============
 
 function supportsAdoptedStyleSheets(root: StyleRoot): boolean {
+  if (root instanceof Document) {
+    return false
+  }
+
   try {
     return "adoptedStyleSheets" in root
       && root.adoptedStyleSheets !== undefined
@@ -24,7 +41,8 @@ function injectStyleElement(root: StyleRoot, id: string, cssText: string): void 
   const container = root instanceof Document ? root.head : root
   let styleElement = root.querySelector(`#${id}`) as HTMLStyleElement | null
   if (!styleElement) {
-    styleElement = document.createElement("style")
+    const ownerDoc = root instanceof Document ? root : root.ownerDocument
+    styleElement = ownerDoc.createElement("style")
     styleElement.id = id
     container.appendChild(styleElement)
   }
@@ -35,41 +53,141 @@ function injectStyleElement(root: StyleRoot, id: string, cssText: string): void 
 
 // ============ Preset Styles Injection ============
 
-// Process CSS for shadow root context:
-// 1. host-theme.css: Replace :root with :host (shadow roots don't inherit :root variables)
-// 2. custom-translation-node.css: Remove @import line (already imported separately)
 const HOST_THEME_CSS = hostThemeCss.replace(/:root/g, ":host")
-const PRESET_STYLES_CSS = customTranslationNodeCss.replace(/@import[^;]+;/g, "")
-const FULL_PRESET_CSS = HOST_THEME_CSS + PRESET_STYLES_CSS
+const DOCUMENT_THEME_CSS = hostThemeCss
+const PRESET_STYLE_ELEMENT_ID = createObfuscatedClassName()
+const CUSTOM_STYLE_ELEMENT_ID = createObfuscatedClassName()
 
-const injectedPresetRoots = new WeakSet<StyleRoot>()
-let presetStyleSheet: CSSStyleSheet | null = null
-
-function getPresetStyleSheet(): CSSStyleSheet {
-  if (!presetStyleSheet) {
-    presetStyleSheet = new CSSStyleSheet()
-    presetStyleSheet.replaceSync(FULL_PRESET_CSS)
-  }
-  return presetStyleSheet
+function buildTranslationBaseCSS(): string {
+  return `
+.${CONTENT_WRAPPER_CLASS},
+.${CONTENT_WRAPPER_CLASS} * {
+  overflow-wrap: anywhere;
+  word-break: normal;
+  user-select: text;
+  text-decoration-skip-ink: auto;
 }
 
-/** Ensure preset styles are injected into the given root (skip Document, injected via manifest) */
-export function ensurePresetStyles(root: StyleRoot): void {
-  // Document preset styles are injected via manifest cssInjectionMode, skip
-  if (root instanceof Document)
-    return
+.${CONTENT_WRAPPER_CLASS} {
+  unicode-bidi: plaintext;
+}
 
+.${BLOCK_CONTENT_CLASS} {
+  display: inline-block;
+  margin: 8px 0 !important;
+  color: inherit;
+  font-family: inherit;
+}
+
+.${INLINE_CONTENT_CLASS} {
+  display: inline;
+  color: inherit;
+  font-family: inherit;
+  text-decoration: inherit;
+}
+
+.${CACHE_HIT_DEBUG_WRAPPER_CLASS},
+.${CACHE_HIT_DEBUG_TARGET_CLASS} {
+  background: color-mix(in srgb, #f59e0b 16%, transparent);
+  outline: 1px solid color-mix(in srgb, #f59e0b 60%, transparent);
+  border-radius: 6px;
+}
+
+.${CACHE_HIT_DEBUG_BADGE_CLASS} {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+`
+}
+
+function buildTranslationPresetCSS(): string {
+  return `
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.blur} {
+  filter: blur(4px);
+  opacity: 0.75;
+  transition:
+    filter 0.1s ease-in-out,
+    opacity 0.1s ease-in-out;
+}
+
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.blur}:hover {
+  filter: blur(0);
+  opacity: 1;
+}
+
+.${BLOCK_CONTENT_CLASS}.${TRANSLATION_NODE_STYLE_CLASS_MAP.blockquote} {
+  border-left: 4px solid var(--read-frog-primary);
+  padding: 4px 0 4px 8px;
+}
+
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.weakened} {
+  opacity: 1;
+  color: var(--read-frog-muted-foreground) !important;
+}
+
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.dashedLine} {
+  text-decoration: underline dashed var(--read-frog-primary) !important;
+  text-underline-offset: 5px;
+}
+
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.border} {
+  border: 1px solid var(--read-frog-primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.textColor} {
+  color: var(--read-frog-primary) !important;
+}
+
+.${TRANSLATION_NODE_STYLE_CLASS_MAP.background} {
+  background-color: color-mix(in srgb, var(--read-frog-primary) 15%, transparent);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+`
+}
+
+const DOCUMENT_PRESET_CSS = DOCUMENT_THEME_CSS + buildTranslationBaseCSS() + buildTranslationPresetCSS()
+const SHADOW_PRESET_CSS = HOST_THEME_CSS + buildTranslationBaseCSS() + buildTranslationPresetCSS()
+
+const injectedPresetRoots = new WeakSet<StyleRoot>()
+let shadowPresetStyleSheet: CSSStyleSheet | null = null
+
+function getPresetStyleSheet(cssText: string): CSSStyleSheet {
+  if (!shadowPresetStyleSheet) {
+    shadowPresetStyleSheet = new CSSStyleSheet()
+    shadowPresetStyleSheet.replaceSync(cssText)
+  }
+  return shadowPresetStyleSheet
+}
+
+function getPresetCSS(root: StyleRoot): string {
+  return root instanceof Document ? DOCUMENT_PRESET_CSS : SHADOW_PRESET_CSS
+}
+
+export function ensurePresetStyles(root: StyleRoot): void {
   if (injectedPresetRoots.has(root))
     return
 
-  // Mark as injected first to prevent race condition with concurrent calls
   injectedPresetRoots.add(root)
+  const cssText = getPresetCSS(root)
 
   if (supportsAdoptedStyleSheets(root)) {
-    root.adoptedStyleSheets = [...getAdoptedStyleSheets(root), getPresetStyleSheet()]
+    root.adoptedStyleSheets = [...getAdoptedStyleSheets(root), getPresetStyleSheet(cssText)]
   }
   else {
-    injectStyleElement(root, "read-frog-preset-styles", FULL_PRESET_CSS)
+    injectStyleElement(root, PRESET_STYLE_ELEMENT_ID, cssText)
   }
 }
 
@@ -80,11 +198,15 @@ let documentCachedCSS: string | null = null
 
 /** Inject custom CSS into the given root */
 export async function ensureCustomCSS(root: StyleRoot, cssText: string): Promise<void> {
-  // Ensure preset styles are injected first (provides CSS variables)
   ensurePresetStyles(root)
+  const normalizedCSSText = cssText.includes("data-read-frog-custom-translation-style")
+    ? cssText.replace(
+        LEGACY_CUSTOM_TRANSLATION_NODE_SELECTOR_REGEX,
+        `.${CUSTOM_TRANSLATION_NODE_CLASS}`,
+      )
+    : cssText
 
-  // Document-level cache optimization
-  if (root instanceof Document && documentCachedCSS === cssText) {
+  if (root instanceof Document && documentCachedCSS === normalizedCSSText) {
     return
   }
 
@@ -92,17 +214,16 @@ export async function ensureCustomCSS(root: StyleRoot, cssText: string): Promise
     let sheet = customCSSMap.get(root)
     if (!sheet) {
       sheet = new CSSStyleSheet()
-      // Set in map first to prevent race condition with concurrent calls
       customCSSMap.set(root, sheet)
       root.adoptedStyleSheets = [...getAdoptedStyleSheets(root), sheet]
     }
-    await sheet.replace(cssText)
+    await sheet.replace(normalizedCSSText)
   }
   else {
-    injectStyleElement(root, "read-frog-custom-styles", cssText)
+    injectStyleElement(root, CUSTOM_STYLE_ELEMENT_ID, normalizedCSSText)
   }
 
   if (root instanceof Document) {
-    documentCachedCSS = cssText
+    documentCachedCSS = normalizedCSSText
   }
 }

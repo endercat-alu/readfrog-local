@@ -1,19 +1,31 @@
 import type { TranslationCacheHit } from "@/types/translation-cache"
-import { NOTRANSLATE_CLASS } from "@/utils/constants/dom-labels"
-
-const CACHE_HIT_ATTRIBUTE = "data-read-frog-cache-hit"
-const CACHE_HIT_LAYER_ATTRIBUTE = "data-read-frog-cache-layer"
-const CACHE_HIT_TYPE_ATTRIBUTE = "data-read-frog-cache-type"
-const CACHE_HIT_LABEL_ATTRIBUTE = "data-read-frog-cache-label"
-const CACHE_HIT_DEBUG_BADGE_CLASS = "read-frog-cache-hit-badge"
-const CACHE_HIT_DEBUG_TARGET_CLASS = "read-frog-cache-hit-target"
-const CACHE_HIT_DEBUG_WRAPPER_CLASS = "read-frog-cache-hit-wrapper"
-const CACHE_HIT_DEBUG_TEXT_WRAP_ATTRIBUTE = "data-read-frog-cache-debug-wrap"
+import {
+  CACHE_HIT_DEBUG_BADGE_CLASS,
+  CACHE_HIT_DEBUG_TARGET_CLASS,
+  CACHE_HIT_DEBUG_TEXT_WRAP_ATTRIBUTE,
+  CACHE_HIT_DEBUG_WRAPPER_CLASS,
+  CONTENT_WRAPPER_CLASS,
+  NOTRANSLATE_CLASS,
+  createObfuscatedPropertyKey,
+} from "@/utils/constants/dom-labels"
 
 let isCacheHitDebugEnabled = false
+const CACHE_HIT_META_PROPERTY = createObfuscatedPropertyKey()
 
 function getCacheHitLabel(cacheHit: TranslationCacheHit): string {
   return `${cacheHit.layer.toUpperCase()} ${cacheHit.cacheType}`
+}
+
+function getCacheHitMetadata(wrapper: HTMLElement): TranslationCacheHit | undefined {
+  return (wrapper as HTMLElement & Record<string, TranslationCacheHit | undefined>)[CACHE_HIT_META_PROPERTY]
+}
+
+function setCacheHitMetadata(wrapper: HTMLElement, cacheHit: TranslationCacheHit): void {
+  ;(wrapper as HTMLElement & Record<string, TranslationCacheHit | undefined>)[CACHE_HIT_META_PROPERTY] = cacheHit
+}
+
+function clearCacheHitMetadata(wrapper: HTMLElement): void {
+  delete (wrapper as HTMLElement & Record<string, TranslationCacheHit | undefined>)[CACHE_HIT_META_PROPERTY]
 }
 
 function removeBadge(wrapper: HTMLElement) {
@@ -65,14 +77,14 @@ function ensureBadge(wrapper: HTMLElement) {
     return
   }
 
-  const label = wrapper.getAttribute(CACHE_HIT_LABEL_ATTRIBUTE)
-  if (!label) {
+  const cacheHit = getCacheHitMetadata(wrapper)
+  if (!cacheHit) {
     return
   }
 
   const badge = wrapper.ownerDocument.createElement("span")
   badge.className = `${NOTRANSLATE_CLASS} ${CACHE_HIT_DEBUG_BADGE_CLASS}`
-  badge.textContent = label
+  badge.textContent = getCacheHitLabel(cacheHit)
   wrapper.insertBefore(badge, wrapper.firstChild)
 }
 
@@ -95,7 +107,7 @@ function applyDebugTargets(wrapper: HTMLElement) {
 function syncWrapperDebugState(wrapper: HTMLElement) {
   clearDebugTargets(wrapper)
 
-  if (!isCacheHitDebugEnabled || wrapper.getAttribute(CACHE_HIT_ATTRIBUTE) !== "true") {
+  if (!isCacheHitDebugEnabled || !getCacheHitMetadata(wrapper)) {
     return
   }
 
@@ -106,24 +118,18 @@ function syncWrapperDebugState(wrapper: HTMLElement) {
 export function setCacheHitDebugEnabled(enabled: boolean) {
   isCacheHitDebugEnabled = enabled
 
-  for (const wrapper of document.querySelectorAll<HTMLElement>(`.read-frog-translated-content-wrapper[${CACHE_HIT_ATTRIBUTE}="true"]`)) {
+  for (const wrapper of document.querySelectorAll<HTMLElement>(`.${CONTENT_WRAPPER_CLASS}`)) {
     syncWrapperDebugState(wrapper)
   }
 }
 
 export function applyCacheHitMetadata(wrapper: HTMLElement, cacheHit?: TranslationCacheHit) {
   if (!cacheHit) {
-    wrapper.removeAttribute(CACHE_HIT_ATTRIBUTE)
-    wrapper.removeAttribute(CACHE_HIT_LAYER_ATTRIBUTE)
-    wrapper.removeAttribute(CACHE_HIT_TYPE_ATTRIBUTE)
-    wrapper.removeAttribute(CACHE_HIT_LABEL_ATTRIBUTE)
+    clearCacheHitMetadata(wrapper)
     syncWrapperDebugState(wrapper)
     return
   }
 
-  wrapper.setAttribute(CACHE_HIT_ATTRIBUTE, "true")
-  wrapper.setAttribute(CACHE_HIT_LAYER_ATTRIBUTE, cacheHit.layer)
-  wrapper.setAttribute(CACHE_HIT_TYPE_ATTRIBUTE, cacheHit.cacheType)
-  wrapper.setAttribute(CACHE_HIT_LABEL_ATTRIBUTE, getCacheHitLabel(cacheHit))
+  setCacheHitMetadata(wrapper, cacheHit)
   syncWrapperDebugState(wrapper)
 }
