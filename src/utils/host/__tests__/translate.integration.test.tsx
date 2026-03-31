@@ -1619,6 +1619,34 @@ describe("translate", () => {
 
       expect(translateTextForPage).not.toHaveBeenCalled()
     })
+
+    it("should skip translating username-like text", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          <span className="username">@read_frog</span>
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
+    })
+
+    it("should skip translating repository or path-like text", async () => {
+      vi.mocked(translateTextForPage).mockClear()
+
+      render(
+        <div data-testid="test-node">
+          endercat/read-frog
+        </div>,
+      )
+
+      await removeOrShowPageTranslation("bilingual", true)
+
+      expect(translateTextForPage).not.toHaveBeenCalled()
+    })
   })
   describe("force block node", () => {
     describe("force <li> as block node", () => {

@@ -20,13 +20,15 @@ export const DETECTED_CODE_STORAGE_KEY = "detectedCode"
 export const DEFAULT_DETECTED_CODE = "eng" as const
 export const CONFIG_SCHEMA_VERSION = 65
 
-export const NODE_IGNORE_HEURISTIC_RULESET_VERSION = 2
+export const NODE_IGNORE_HEURISTIC_RULESET_VERSION = 3
 
 export const DEFAULT_NODE_IGNORE_HEURISTIC_RULES: NodeIgnoreHeuristicRule[] = [
   "semanticTags",
   "linkTextTail",
   "shortFileLink",
   "hashLikeOrFileName",
+  "usernameLike",
+  "repoOrPathLike",
   "versionLike",
   "numericLike",
   "fileSizeLike",

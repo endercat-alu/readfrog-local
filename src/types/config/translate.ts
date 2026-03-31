@@ -39,6 +39,8 @@ export const NODE_IGNORE_HEURISTIC_RULES = [
   "linkTextTail",
   "shortFileLink",
   "hashLikeOrFileName",
+  "usernameLike",
+  "repoOrPathLike",
   "versionLike",
   "numericLike",
   "fileSizeLike",

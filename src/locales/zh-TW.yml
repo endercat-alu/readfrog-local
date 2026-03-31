@@ -484,7 +484,7 @@ options:
       error: 數值必須在 $1 到 $2 之間
     nodeIgnoreHeuristics:
       title: 啟發式節點忽略規則
-      description: 跳過那些明顯更像程式碼、連結、檔名、雜湊值或純數字的節點或文字
+      description: 跳過那些明顯更像程式碼、連結、檔名、雜湊值、使用者名稱、倉庫名、路徑或純數字的節點或文字
       rules:
         semanticTags:
           title: 語義化標籤過濾
@@ -498,6 +498,12 @@ options:
         hashLikeOrFileName:
           title: 雜湊或檔名匹配
           description: 跳過常見的長十六進位雜湊，以及明顯帶有常見檔案副檔名的文字
+        usernameLike:
+          title: 使用者名稱匹配
+          description: 跳過 class 或屬性明顯提示為使用者名稱，或文字本身形如 @read_frog 的內容
+        repoOrPathLike:
+          title: 倉庫名或路徑匹配
+          description: 跳過明顯像 user/repo、C:\Users\name、/etc 這類倉庫名或檔案系統路徑的文字
         versionLike:
           title: 版本號匹配
           description: 跳過常見版本號文字，如 v1.2.3、v.2.0、ver.3.1

@@ -484,7 +484,7 @@ options:
       error: Giá trị phải từ $1 đến $2
     nodeIgnoreHeuristics:
       title: Heuristic Node Ignore Rules
-      description: Skip translating nodes or text that strongly look like code, links, filenames, hashes, or pure numbers
+      description: Skip translating nodes or text that strongly look like code, links, filenames, hashes, usernames, repository names, paths, or pure numbers
       rules:
         semanticTags:
           title: Semantic Tag Filter
@@ -498,6 +498,12 @@ options:
         hashLikeOrFileName:
           title: Hash or Filename Match
           description: Skip common long hexadecimal hashes and text that clearly looks like a filename with a known extension
+        usernameLike:
+          title: Username Match
+          description: Skip likely usernames detected from username-like classes or attributes, or text such as @read_frog
+        repoOrPathLike:
+          title: Repository or Path Match
+          description: Skip text that clearly looks like a repository slug or a filesystem path, such as user/repo, C:\Users\name, or /etc
         versionLike:
           title: Version Pattern Match
           description: Skip common version strings such as v1.2.3 or ver.2.0

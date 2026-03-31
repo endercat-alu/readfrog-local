@@ -63,11 +63,19 @@ const NEW_NODE_IGNORE_HEURISTIC_RULES: NodeIgnoreHeuristicRule[] = [
   "shortFileLink",
   "versionLike",
   "fileSizeLike",
+  "usernameLike",
+  "repoOrPathLike",
 ]
 
 const FILE_SIZE_PATTERN = /^\d+(?:\.\d+)?\s?(?:b|kb|mb|gb|tb|pb|kib|mib|gib|tib|pib)$/i
 const VERSION_PATTERN = /^(?:v|ver)\.?\s*\d+(?:\.\d+)*$/i
 const HEX_HASH_PATTERN = /^[a-f0-9]{16,}$/i
+const USERNAME_MENTION_PATTERN = /^@[a-z0-9_](?:[a-z0-9_.-]{0,37}[a-z0-9_])?$/i
+const USERNAME_TEXT_PATTERN = /^[a-z0-9_](?:[a-z0-9_.-]{0,37}[a-z0-9_])?$/i
+const USERNAME_HINT_PATTERN = /\b(?:user[-_.:\s]*name|user[-_.:\s]*handle|screen[-_.:\s]*name|nick[-_.:\s]*name|handle)\b/i
+const REPOSITORY_SEGMENT_PATTERN = /^[a-z0-9_.-]+$/i
+const UNIX_PATH_PATTERN = /^\/(?:[^/\s]+\/)*[^/\s]+\/?$/
+const WINDOWS_PATH_PATTERN = /^[a-z0-9._-]+:\\(?:[^\\/\s]+\\)*[^\\/\s]+\\?$/i
 
 const anchorCache = new WeakMap<Node, HTMLAnchorElement | null>()
 const anchorTailCache = new WeakMap<HTMLAnchorElement, string | null>()
@@ -259,6 +267,109 @@ function isFileNameLike(text: string): boolean {
   return COMMON_FILE_EXTENSIONS.has(match[1].toLowerCase())
 }
 
+function toHintComparableValue(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase()
+}
+
+function hasUsernameHint(value: string): boolean {
+  const comparable = toHintComparableValue(value)
+  if (!comparable) {
+    return false
+  }
+
+  return USERNAME_HINT_PATTERN.test(comparable)
+}
+
+function getHeuristicElements(nodes: readonly TransNode[]): HTMLElement[] {
+  const elements: HTMLElement[] = []
+  const seen = new Set<HTMLElement>()
+
+  for (const node of nodes) {
+    const element = isHTMLElement(node) ? node : node.parentElement
+    let current = element
+    let depth = 0
+
+    while (current && depth < 8) {
+      if (!seen.has(current)) {
+        seen.add(current)
+        elements.push(current)
+      }
+      current = current.parentElement
+      depth += 1
+    }
+  }
+
+  return elements
+}
+
+function doesElementHintUsername(element: HTMLElement): boolean {
+  if (Array.from(element.classList).some(hasUsernameHint)) {
+    return true
+  }
+
+  for (const attribute of element.attributes) {
+    if (hasUsernameHint(attribute.name) || hasUsernameHint(attribute.value)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function isUsernameLikeContent(nodes: readonly TransNode[], text: string): boolean {
+  const normalizedText = text.trim()
+  if (!normalizedText || normalizedText.length > 40) {
+    return false
+  }
+
+  const heuristicElements = getHeuristicElements(nodes)
+  if (heuristicElements.some(doesElementHintUsername)) {
+    return true
+  }
+
+  if (USERNAME_MENTION_PATTERN.test(normalizedText)) {
+    return true
+  }
+
+  if (!USERNAME_TEXT_PATTERN.test(normalizedText) || isNumericContent(normalizedText)) {
+    return false
+  }
+
+  return false
+}
+
+function isRepositoryLike(text: string): boolean {
+  if (text.startsWith("/") || text.includes("\\") || text.includes(":")) {
+    return false
+  }
+
+  const segments = text.split("/")
+  if (segments.length !== 2 || text.length < 8) {
+    return false
+  }
+
+  if (segments.some(segment => !segment || segment.length > 64 || !REPOSITORY_SEGMENT_PATTERN.test(segment))) {
+    return false
+  }
+
+  return /[a-z]/i.test(text)
+}
+
+function isPathLike(text: string): boolean {
+  return UNIX_PATH_PATTERN.test(text) || WINDOWS_PATH_PATTERN.test(text)
+}
+
+function isRepoOrPathLikeContent(text: string): boolean {
+  const normalizedText = text.trim()
+  if (!normalizedText || normalizedText.length > 120 || /\s/.test(normalizedText)) {
+    return false
+  }
+
+  return isRepositoryLike(normalizedText) || isPathLike(normalizedText)
+}
+
 export function isHashLikeOrFileNameContent(text: string): boolean {
   return isHexHashLike(text) || isFileNameLike(text)
 }
@@ -277,6 +388,8 @@ export function shouldIgnoreTextByHeuristics(
   const linkTextTailEnabled = enabledRules.includes("linkTextTail")
   const shortFileLinkEnabled = enabledRules.includes("shortFileLink")
   const hashLikeOrFileNameEnabled = enabledRules.includes("hashLikeOrFileName")
+  const usernameLikeEnabled = enabledRules.includes("usernameLike")
+  const repoOrPathLikeEnabled = enabledRules.includes("repoOrPathLike")
   const versionLikeEnabled = enabledRules.includes("versionLike")
   const numericLikeEnabled = enabledRules.includes("numericLike")
   const fileSizeLikeEnabled = enabledRules.includes("fileSizeLike")
@@ -290,6 +403,14 @@ export function shouldIgnoreTextByHeuristics(
   }
 
   if (hashLikeOrFileNameEnabled && isHashLikeOrFileNameContent(normalizedText)) {
+    return true
+  }
+
+  if (usernameLikeEnabled && isUsernameLikeContent(nodes, normalizedText)) {
+    return true
+  }
+
+  if (repoOrPathLikeEnabled && isRepoOrPathLikeContent(normalizedText)) {
     return true
   }
 

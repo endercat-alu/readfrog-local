@@ -13,6 +13,8 @@ const RULE_ITEMS: NodeIgnoreHeuristicRule[] = [
   "linkTextTail",
   "shortFileLink",
   "hashLikeOrFileName",
+  "usernameLike",
+  "repoOrPathLike",
   "versionLike",
   "numericLike",
   "fileSizeLike",

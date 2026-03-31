@@ -647,7 +647,7 @@ options:
       error: 数值必须在 $1 到 $2 之间
     nodeIgnoreHeuristics:
       title: 启发式节点忽略规则
-      description: 跳过那些明显更像代码、链接、文件名、哈希值或纯数字的节点或文本
+      description: 跳过那些明显更像代码、链接、文件名、哈希值、用户名、仓库名、路径或纯数字的节点或文本
       rules:
         semanticTags:
           title: 语义化标签过滤
@@ -661,6 +661,12 @@ options:
         hashLikeOrFileName:
           title: 哈希或文件名匹配
           description: 跳过常见的长十六进制哈希，以及明显带有常见文件扩展名的文本
+        usernameLike:
+          title: 用户名匹配
+          description: 跳过 class 或属性明显提示为用户名，或文本本身形如 @read_frog 的内容
+        repoOrPathLike:
+          title: 仓库名或路径匹配
+          description: 跳过明显像 user/repo、C:\Users\name、/etc 这类仓库名或文件系统路径的文本
         versionLike:
           title: 版本号匹配
           description: 跳过常见版本号文本，如 v1.2.3、v.2.0、ver.3.1

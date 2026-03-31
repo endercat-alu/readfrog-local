@@ -259,6 +259,78 @@ describe("shouldIgnoreTextByHeuristics", () => {
     ).toBe(true)
   })
 
+  it("should ignore username-like text when the element hints username", () => {
+    const element = document.createElement("span")
+    element.className = "username"
+    element.textContent = "read_frog"
+
+    expect(
+      shouldIgnoreTextByHeuristics([element], element.textContent ?? "", DEFAULT_CONFIG),
+    ).toBe(true)
+  })
+
+  it("should ignore @mention-like usernames", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("@read_frog")],
+        "@read_frog",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore display names inside deep username-hinted ancestors", () => {
+    const container = document.createElement("div")
+    container.setAttribute("data-testid", "User-Name")
+
+    const level1 = document.createElement("div")
+    const level2 = document.createElement("div")
+    const level3 = document.createElement("div")
+    const level4 = document.createElement("div")
+    const span = document.createElement("span")
+    span.textContent = "Chaofan Shou"
+
+    level4.appendChild(span)
+    level3.appendChild(level4)
+    level2.appendChild(level3)
+    level1.appendChild(level2)
+    container.appendChild(level1)
+
+    expect(
+      shouldIgnoreTextByHeuristics([span], span.textContent ?? "", DEFAULT_CONFIG),
+    ).toBe(true)
+  })
+
+  it("should ignore repository-like text", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("endercat/read-frog")],
+        "endercat/read-frog",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore unix-like paths", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("/etc/read-frog")],
+        "/etc/read-frog",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
+  it("should ignore windows-like paths", () => {
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("C:\\Users\\endercat\\read-frog")],
+        "C:\\Users\\endercat\\read-frog",
+        DEFAULT_CONFIG,
+      ),
+    ).toBe(true)
+  })
+
   it("should ignore numeric text", () => {
     expect(
       shouldIgnoreTextByHeuristics(
@@ -323,6 +395,33 @@ describe("shouldIgnoreTextByHeuristics", () => {
     ).toBe(false)
   })
 
+  it("should not ignore username-like text when the rule is disabled", () => {
+    const config = createConfigWithHeuristics(
+      DEFAULT_CONFIG.translate.page.nodeIgnoreHeuristics.enabledRules.filter(rule => rule !== "usernameLike"),
+    )
+    const element = document.createElement("span")
+    element.className = "username"
+    element.textContent = "read_frog"
+
+    expect(
+      shouldIgnoreTextByHeuristics([element], element.textContent ?? "", config),
+    ).toBe(false)
+  })
+
+  it("should not ignore repository-like text when the rule is disabled", () => {
+    const config = createConfigWithHeuristics(
+      DEFAULT_CONFIG.translate.page.nodeIgnoreHeuristics.enabledRules.filter(rule => rule !== "repoOrPathLike"),
+    )
+
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("endercat/read-frog")],
+        "endercat/read-frog",
+        config,
+      ),
+    ).toBe(false)
+  })
+
   it("should enable newly added rules by default for old ruleset configs", () => {
     const oldRulesetConfig = {
       ...DEFAULT_CONFIG,
@@ -350,6 +449,22 @@ describe("shouldIgnoreTextByHeuristics", () => {
       shouldIgnoreTextByHeuristics(
         [document.createTextNode("3.57 MB")],
         "3.57 MB",
+        oldRulesetConfig,
+      ),
+    ).toBe(true)
+
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("@read_frog")],
+        "@read_frog",
+        oldRulesetConfig,
+      ),
+    ).toBe(true)
+
+    expect(
+      shouldIgnoreTextByHeuristics(
+        [document.createTextNode("/etc/read-frog")],
+        "/etc/read-frog",
         oldRulesetConfig,
       ),
     ).toBe(true)
