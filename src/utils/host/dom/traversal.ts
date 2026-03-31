@@ -9,17 +9,17 @@ import {
 import { FORCE_BLOCK_TAGS } from "@/utils/constants/dom-rules"
 import { shouldIgnoreElementBySemanticTagHeuristic } from "../translate/node-ignore-heuristics"
 import {
+  getShallowElementDisplayKind,
   isCustomForceBlockTranslation,
   isDontWalkIntoAndDontTranslateAsChildElement,
   isDontWalkIntoButTranslateAsChildElement,
   isHTMLElement,
-  isShallowBlockHTMLElement,
-  isShallowInlineHTMLElement,
   isTextNode,
 } from "./filter"
 
 interface WalkAndLabelResult {
   forceBlock: boolean
+  hasMeaningfulText: boolean
   isInlineNode: boolean
 }
 
@@ -31,7 +31,7 @@ interface WalkAndLabelOptions {
 
 export interface WalkAndLabelScanResult extends WalkAndLabelResult {
   isolatedMutationRoots: HTMLElement[]
-  paragraphs: HTMLElement[]
+  topLevelParagraphs: HTMLElement[]
 }
 
 export function extractTextContent(node: TransNode, config: Config): string {
@@ -95,11 +95,11 @@ export function walkAndLabelElement(
   config: Config,
   options: WalkAndLabelOptions = {},
 ): WalkAndLabelResult | WalkAndLabelScanResult {
-  const paragraphs: HTMLElement[] = []
+  const topLevelParagraphs: HTMLElement[] = []
   const isolatedMutationRoots: HTMLElement[] = []
   const ignoredElements = new WeakSet<HTMLElement>()
   const computedResults = new WeakMap<HTMLElement, WalkAndLabelResult>()
-  const stack: Array<{ element: HTMLElement, exiting: boolean }> = [{ element, exiting: false }]
+  const stack: Array<{ element: HTMLElement, exiting: boolean, paragraphStartIndex?: number }> = [{ element, exiting: false }]
 
   while (stack.length > 0) {
     const current = stack.pop()
@@ -116,12 +116,16 @@ export function walkAndLabelElement(
 
       if (isDontWalkInto || isDontWalkIntoAndDontTranslateAsChildElement(currentElement, config)) {
         ignoredElements.add(currentElement)
-        computedResults.set(currentElement, { forceBlock: false, isInlineNode: false })
+        computedResults.set(currentElement, { forceBlock: false, hasMeaningfulText: false, isInlineNode: false })
         continue
       }
 
       currentElement.setAttribute(WALKED_ATTRIBUTE, walkId)
-      stack.push({ element: currentElement, exiting: true })
+      stack.push({
+        element: currentElement,
+        exiting: true,
+        paragraphStartIndex: options.collectParagraphs ? topLevelParagraphs.length : undefined,
+      })
 
       if (currentElement.shadowRoot) {
         if (options.collectMutationRoots) {
@@ -152,11 +156,13 @@ export function walkAndLabelElement(
 
     let hasInlineNodeChild = false
     let forceBlock = false
+    let hasMeaningfulText = false
 
     for (const child of currentElement.childNodes) {
       if (isTextNode(child)) {
         if (child.textContent?.trim()) {
           hasInlineNodeChild = true
+          hasMeaningfulText = true
         }
         continue
       }
@@ -171,6 +177,9 @@ export function walkAndLabelElement(
       }
 
       forceBlock = forceBlock || childResult.forceBlock
+      if (childResult.hasMeaningfulText) {
+        hasMeaningfulText = true
+      }
       if (childResult.isInlineNode) {
         hasInlineNodeChild = true
       }
@@ -179,24 +188,27 @@ export function walkAndLabelElement(
     if (hasInlineNodeChild) {
       currentElement.setAttribute(PARAGRAPH_ATTRIBUTE, "")
       if (options.collectParagraphs) {
-        paragraphs.push(currentElement)
+        topLevelParagraphs.length = current.paragraphStartIndex ?? topLevelParagraphs.length
+        topLevelParagraphs.push(currentElement)
       }
     }
 
     forceBlock = forceBlock || FORCE_BLOCK_TAGS.has(currentElement.tagName)
 
-    if (currentElement.textContent?.trim() === "" && !forceBlock) {
+    if (!hasMeaningfulText && !forceBlock) {
       computedResults.set(currentElement, {
         forceBlock: false,
+        hasMeaningfulText: false,
         isInlineNode: false,
       })
       continue
     }
 
-    const isInlineNode = isShallowInlineHTMLElement(currentElement)
+    const shallowDisplayKind = getShallowElementDisplayKind(currentElement, hasMeaningfulText)
+    const isInlineNode = shallowDisplayKind === "inline"
     const shouldForceBlock = forceBlock || isCustomForceBlockTranslation(currentElement)
 
-    if (shouldForceBlock || (!isInlineNode && isShallowBlockHTMLElement(currentElement))) {
+    if (shouldForceBlock || shallowDisplayKind === "block") {
       currentElement.setAttribute(BLOCK_ATTRIBUTE, "")
     }
     else if (isInlineNode) {
@@ -205,12 +217,14 @@ export function walkAndLabelElement(
 
     computedResults.set(currentElement, {
       forceBlock,
+      hasMeaningfulText,
       isInlineNode,
     })
   }
 
   const result = computedResults.get(element) ?? {
     forceBlock: false,
+    hasMeaningfulText: false,
     isInlineNode: false,
   }
 
@@ -221,6 +235,6 @@ export function walkAndLabelElement(
   return {
     ...result,
     isolatedMutationRoots,
-    paragraphs,
+    topLevelParagraphs,
   }
 }

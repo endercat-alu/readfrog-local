@@ -4,12 +4,13 @@ import type { GlossaryEntry } from "@/types/config/glossary"
 import type { ProviderConfig } from "@/types/config/provider"
 import type { TranslationResult } from "@/types/translation-cache"
 import type { AIContentAwareMode } from "@/types/config/translate"
+import type { DetectLanguageOptions } from "@/utils/content/language"
 import { i18n } from "#imports"
 import { Readability } from "@mozilla/readability"
 import { LANG_CODE_TO_EN_NAME, LANG_CODE_TO_LOCALE_NAME } from "@read-frog/definitions"
-import { franc } from "franc"
 import { toast } from "sonner"
 import { isAPIProviderConfig, isLLMProviderConfig } from "@/types/config/provider"
+import { getDetectedCodeFromStorage } from "@/utils/config/languages"
 import { getProviderConfigById } from "@/utils/config/helpers"
 import { BLOCK_ATTRIBUTE, PARAGRAPH_ATTRIBUTE } from "@/utils/constants/dom-labels"
 import { detectLanguage } from "@/utils/content/language"
@@ -42,6 +43,7 @@ const SHARED_TEXT_CACHE_MAX_LINES = 4
 const SHARED_TEXT_CACHE_REPETITION_THRESHOLD = 2
 const LOCAL_CONTEXT_MAX_LENGTH = 1200
 const REPEATED_PAGE_TEXT_STATE_MAX_ENTRIES = 2000
+const LANGUAGE_DETECTION_CACHE_MAX_ENTRIES = 500
 const META_CONTENT_SELECTORS = [
   "meta[property='og:title']",
   "meta[name='twitter:title']",
@@ -111,6 +113,84 @@ let localContextCacheState: {
   fingerprintByElement: WeakMap<HTMLElement, string | null>
 } | null = null
 
+let languageDetectionCacheState: {
+  url: string
+  results: Map<string, LangCodeISO6393 | null>
+  pending: Map<string, Promise<LangCodeISO6393 | null>>
+} | null = null
+
+function getLanguageDetectionCacheState() {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  if (!languageDetectionCacheState || languageDetectionCacheState.url !== window.location.href) {
+    languageDetectionCacheState = {
+      url: window.location.href,
+      results: new Map(),
+      pending: new Map(),
+    }
+  }
+
+  return languageDetectionCacheState
+}
+
+function buildLanguageDetectionCacheKey(
+  text: string,
+  options?: Pick<DetectLanguageOptions, "enableLLM" | "providerConfig">,
+): string {
+  const normalizedText = cleanText(text, 2048)
+  const detectionMode = options?.enableLLM && options.providerConfig
+    ? `llm:${options.providerConfig.id}`
+    : "franc"
+
+  return `${detectionMode}:${normalizedText}`
+}
+
+async function detectLanguageCached(
+  text: string,
+  options?: DetectLanguageOptions,
+): Promise<LangCodeISO6393 | null> {
+  const trimmedText = text.trim()
+  const minLength = options?.minLength ?? MIN_LENGTH_FOR_SKIP_LLM_DETECTION
+  if (trimmedText.length < minLength) {
+    return null
+  }
+
+  const cacheState = getLanguageDetectionCacheState()
+  if (!cacheState) {
+    return detectLanguage(text, options)
+  }
+
+  const cacheKey = buildLanguageDetectionCacheKey(trimmedText, options)
+  const cachedResult = cacheState.results.get(cacheKey)
+  if (cachedResult !== undefined) {
+    return cachedResult
+  }
+
+  const pendingResult = cacheState.pending.get(cacheKey)
+  if (pendingResult) {
+    return pendingResult
+  }
+
+  const nextResultPromise = detectLanguage(text, options).then((result) => {
+    cacheState.pending.delete(cacheKey)
+
+    if (!cacheState.results.has(cacheKey) && cacheState.results.size >= LANGUAGE_DETECTION_CACHE_MAX_ENTRIES) {
+      const oldestKey = cacheState.results.keys().next().value
+      if (oldestKey) {
+        cacheState.results.delete(oldestKey)
+      }
+    }
+
+    cacheState.results.set(cacheKey, result)
+    return result
+  })
+
+  cacheState.pending.set(cacheKey, nextResultPromise)
+  return nextResultPromise
+}
+
 /**
  * Check if text should be skipped based on language detection.
  * Uses LLM detection if enabled, falls back to franc library.
@@ -125,9 +205,19 @@ export async function shouldSkipByLanguage(
   skipLanguages: LangCodeISO6393[],
   enableLLMDetection: boolean,
   providerConfig: ProviderConfig,
+  pageDetectedCode?: LangCodeISO6393,
 ): Promise<boolean> {
+  if (skipLanguages.length === 0) {
+    return false
+  }
+
+  const resolvedPageDetectedCode = pageDetectedCode ?? await getDetectedCodeFromStorage()
+  if (skipLanguages.includes(resolvedPageDetectedCode)) {
+    return true
+  }
+
   const isLLMProvider = isLLMProviderConfig(providerConfig)
-  const detectedLang = await detectLanguage(text, {
+  const detectedLang = await detectLanguageCached(text, {
     minLength: MIN_LENGTH_FOR_SKIP_LLM_DETECTION,
     enableLLM: enableLLMDetection && isLLMProvider,
     providerConfig: isLLMProvider ? providerConfig : undefined,
@@ -411,7 +501,7 @@ export function buildLocalContextFingerprint(
   nodes: ChildNode[],
   config: Config,
 ): { fingerprint?: string, container?: HTMLElement } {
-  const container = resolveLocalContextElement(nodes, config)
+  const container = resolveLocalContextContainer(nodes, config)
   if (!container) {
     return {}
   }
@@ -425,6 +515,13 @@ export function buildLocalContextFingerprint(
     container,
     fingerprint,
   }
+}
+
+export function resolveLocalContextContainer(
+  nodes: ChildNode[],
+  config: Config,
+): HTMLElement | undefined {
+  return resolveLocalContextElement(nodes, config) ?? undefined
 }
 
 function collectMetaContextParts(title: string): string[] {
@@ -703,7 +800,7 @@ export async function buildPageSharedTextCacheKey(
     return undefined
   }
 
-  const { container } = buildLocalContextFingerprint(nodes, config)
+  const container = resolveLocalContextContainer(nodes, config)
   const repeatedCount = getRepeatedPageTextCount(text)
   const canShareAcrossContexts = isBoilerplateContextElement(container)
     || repeatedCount >= SHARED_TEXT_CACHE_REPETITION_THRESHOLD
@@ -731,6 +828,7 @@ export interface TranslateTextOptions {
   aiContentAwareMode?: AIContentAwareMode
   extraHashTags?: string[]
   exactCacheContextFingerprint?: string
+  pageDetectedCode?: LangCodeISO6393
   sharedCacheKey?: string
 }
 
@@ -749,6 +847,7 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
     aiContentAwareMode = "viewport",
     extraHashTags = [],
     exactCacheContextFingerprint,
+    pageDetectedCode,
     sharedCacheKey,
   } = options
 
@@ -757,7 +856,11 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
 
   // Skip translation if text is already in target language
   if (requestText.length >= MIN_LENGTH_FOR_LANG_DETECTION) {
-    const detectedLang = franc(requestText)
+    const detectedLang = pageDetectedCode && pageDetectedCode !== langConfig.targetCode
+      ? pageDetectedCode
+      : await detectLanguageCached(requestText, {
+          minLength: MIN_LENGTH_FOR_LANG_DETECTION,
+        })
     if (detectedLang === langConfig.targetCode) {
       logger.info(`translateTextCore: skipping translation because text is already in target language. text: ${requestText}`)
       return { translation: "" }

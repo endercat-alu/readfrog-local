@@ -34,8 +34,10 @@ export function isShallowInlineTransNode(node: Node): boolean {
 
 // treat large floating letter on some news websites as inline node
 // for example: https://www.economist.com/business/2025/08/21/china-is-quietly-upstaging-america-with-its-open-models
-function isLargeInitialFloatingLetter(element: HTMLElement): boolean {
-  const computedStyle = window.getComputedStyle(element)
+function isLargeInitialFloatingLetter(
+  element: HTMLElement,
+  computedStyle: CSSStyleDeclaration = window.getComputedStyle(element),
+): boolean {
   return computedStyle.float === "left" && !!element.nextSibling && isShallowInlineTransNode(element.nextSibling)
 }
 
@@ -64,22 +66,29 @@ function isInlineDisplay(display: string): boolean {
 }
 
 export function isShallowInlineHTMLElement(element: HTMLElement): boolean {
+  return getShallowElementDisplayKind(element) === "inline"
+}
+
+export function getShallowElementDisplayKind(
+  element: HTMLElement,
+  hasMeaningfulText: boolean = !!element.textContent?.trim(),
+): "inline" | "block" | "none" {
   // to prevent too many inline nodes that make <body> as a paragraph node
-  if (!element.textContent?.trim()) {
-    return false
+  if (!hasMeaningfulText) {
+    return "none"
   }
 
   if (FORCE_BLOCK_TAGS.has(element.tagName)) {
-    return false
+    return "block"
   }
 
   const computedStyle = window.getComputedStyle(element)
 
-  if (isLargeInitialFloatingLetter(element)) {
-    return true
+  if (isLargeInitialFloatingLetter(element, computedStyle)) {
+    return "inline"
   }
 
-  return isInlineDisplay(computedStyle.display)
+  return isInlineDisplay(computedStyle.display) ? "inline" : "block"
 }
 
 // Note: !(inline node) != block node because of `notranslate` class and all cases not in the if else block
@@ -94,17 +103,7 @@ export function isShallowBlockTransNode(node: Node): boolean {
 }
 
 export function isShallowBlockHTMLElement(element: HTMLElement): boolean {
-  const computedStyle = window.getComputedStyle(element)
-
-  if (FORCE_BLOCK_TAGS.has(element.tagName)) {
-    return true
-  }
-
-  if (isLargeInitialFloatingLetter(element)) {
-    return false
-  }
-
-  return !isInlineDisplay(computedStyle.display)
+  return getShallowElementDisplayKind(element) === "block"
 }
 
 export function isCustomDontWalkIntoElement(element: HTMLElement): boolean {

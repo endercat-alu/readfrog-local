@@ -21,10 +21,16 @@ vi.mock("@/utils/prompts/translate", () => ({
   getTranslatePrompt: vi.fn(),
 }))
 
+vi.mock("@/utils/config/languages", () => ({
+  getDetectedCodeFromStorage: vi.fn(),
+  getFinalSourceCode: (sourceCode: string, detectedCode: string) => sourceCode === "auto" ? detectedCode : sourceCode,
+}))
+
 let mockSendMessage: any
 let mockMicrosoftTranslate: any
 let mockGetConfigFromStorage: any
 let mockGetTranslatePrompt: any
+let mockGetDetectedCodeFromStorage: any
 
 describe("translate-text", () => {
   beforeEach(async () => {
@@ -33,9 +39,11 @@ describe("translate-text", () => {
     mockMicrosoftTranslate = vi.mocked((await import("@/utils/host/translate/api/microsoft")).microsoftTranslate)
     mockGetConfigFromStorage = vi.mocked((await import("@/utils/config/storage")).getLocalConfig)
     mockGetTranslatePrompt = vi.mocked((await import("@/utils/prompts/translate")).getTranslatePrompt)
+    mockGetDetectedCodeFromStorage = vi.mocked((await import("@/utils/config/languages")).getDetectedCodeFromStorage)
 
     // Mock getConfigFromStorage to return DEFAULT_CONFIG
     mockGetConfigFromStorage.mockResolvedValue(DEFAULT_CONFIG)
+    mockGetDetectedCodeFromStorage.mockResolvedValue("eng")
 
     // Mock getTranslatePrompt to return a simple prompt
     mockGetTranslatePrompt.mockResolvedValue("Translate to {{targetLang}}: {{input}}")

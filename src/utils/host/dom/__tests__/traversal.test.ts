@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest"
 import { DEFAULT_CONFIG, NODE_IGNORE_HEURISTIC_RULESET_VERSION } from "@/utils/constants/config"
-import { extractTextContent } from "../traversal"
+import { extractTextContent, walkAndLabelElement } from "../traversal"
 
 describe("extractTextContent", () => {
   describe("text node whitespace normalization", () => {
@@ -142,5 +142,25 @@ describe("extractTextContent", () => {
       div.innerHTML = "<span>Hello</span><span class=\"sr-only\">Secret</span> <span>World</span>"
       expect(extractTextContent(div, DEFAULT_CONFIG)).toBe("Hello World")
     })
+  })
+})
+
+describe("walkAndLabelElement", () => {
+  it("should collect only top-level paragraphs during scan", () => {
+    document.body.innerHTML = `
+      <section id="root">
+        <div id="outer">
+          <span id="inner">Hello</span>
+        </div>
+      </section>
+    `
+
+    const root = document.getElementById("root") as HTMLElement
+    const result = walkAndLabelElement(root, "walk-id", DEFAULT_CONFIG, {
+      collectParagraphs: true,
+      collectMutationRoots: true,
+    })
+
+    expect(result.topLevelParagraphs.map(el => el.id)).toEqual(["outer"])
   })
 })

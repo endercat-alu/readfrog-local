@@ -233,26 +233,7 @@ export class PageTranslationManager implements IPageTranslationManager {
       return
     }
 
-    const topLevelParagraphs = this.filterTopLevelParagraphs(container, scanResult.paragraphs)
-    topLevelParagraphs.forEach(el => observer.observe(el))
-  }
-
-  private filterTopLevelParagraphs(container: HTMLElement, paragraphs: HTMLElement[]): HTMLElement[] {
-    if (paragraphs.length <= 1) {
-      return paragraphs
-    }
-
-    const paragraphSet = new Set(paragraphs)
-    return paragraphs.filter((paragraph) => {
-      let current = paragraph.parentElement
-      while (current && current !== container) {
-        if (paragraphSet.has(current)) {
-          return false
-        }
-        current = current.parentElement
-      }
-      return true
-    })
+    scanResult.topLevelParagraphs.forEach(el => observer.observe(el))
   }
 
   /**

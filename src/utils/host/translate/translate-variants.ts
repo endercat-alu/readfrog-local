@@ -1,6 +1,7 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { Config, InputTranslationLang } from "@/types/config/config"
 import type { TranslationResult } from "@/types/translation-cache"
+import { isLLMProviderConfig } from "@/types/config/provider"
 import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/languages"
 import { resolveProviderConfig } from "@/utils/constants/feature-providers"
 import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
@@ -39,16 +40,19 @@ export async function translateTextForPageWithResult(
 ): Promise<TranslationResult> {
   const config = await getConfigOrThrow()
   const providerConfig = resolveProviderConfig(config, "translate")
+  const pageDetectedCode = await getDetectedCodeFromStorage()
 
   // Skip translation if text is in skipLanguages list (page translation only)
   const { skipLanguages, enableSkipLanguagesLLMDetection } = config.translate.page
   if (skipLanguages.length > 0 && text.length >= MIN_LENGTH_FOR_SKIP_LLM_DETECTION) {
-    const shouldSkip = await shouldSkipByLanguage(
-      text,
-      skipLanguages,
-      enableSkipLanguagesLLMDetection,
-      providerConfig,
-    )
+    const shouldSkip = skipLanguages.includes(pageDetectedCode)
+      || await shouldSkipByLanguage(
+        text,
+        skipLanguages,
+        enableSkipLanguagesLLMDetection,
+        providerConfig,
+        pageDetectedCode,
+      )
     if (shouldSkip) {
       logger.info(`translateTextForPage: skipping translation because text is in skip language list. text: ${text}`)
       return { translation: "" }
@@ -56,7 +60,7 @@ export async function translateTextForPageWithResult(
   }
 
   const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, config.glossary.entries)
-  const exactCacheContextFingerprint = options?.nodes
+  const exactCacheContextFingerprint = isLLMProviderConfig(providerConfig) && options?.nodes
     ? buildLocalContextFingerprint(options.nodes, config).fingerprint
     : undefined
   const sharedCacheKey = options?.nodes
@@ -79,6 +83,7 @@ export async function translateTextForPageWithResult(
     enableAIContentAware: config.translate.enableAIContentAware,
     aiContentAwareMode: config.translate.aiContentAwareMode,
     exactCacheContextFingerprint,
+    pageDetectedCode,
     sharedCacheKey,
   })
 }

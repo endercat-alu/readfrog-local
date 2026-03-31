@@ -1,6 +1,7 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { ProviderConfig } from "@/types/config/provider"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { getDetectedCodeFromStorage } from "@/utils/config/languages"
 import { detectLanguage } from "@/utils/content/language"
 import { shouldSkipByLanguage } from "../translate-text"
 
@@ -9,10 +10,21 @@ vi.mock("@/utils/content/language", () => ({
   detectLanguage: vi.fn(),
 }))
 
+vi.mock("@/utils/config/languages", () => ({
+  getDetectedCodeFromStorage: vi.fn(),
+}))
+
 const mockedDetect = vi.mocked(detectLanguage)
+const mockedGetDetectedCodeFromStorage = vi.mocked(getDetectedCodeFromStorage)
 
 beforeEach(() => {
   mockedDetect.mockReset()
+  mockedGetDetectedCodeFromStorage.mockReset()
+  mockedGetDetectedCodeFromStorage.mockResolvedValue("eng")
+
+  if (typeof window !== "undefined") {
+    window.history.replaceState({}, "", `https://example.com/${Math.random().toString(36).slice(2)}`)
+  }
 })
 
 // Mock provider configs - only provider field is needed for shouldSkipByLanguage
@@ -49,6 +61,20 @@ describe("shouldSkipByLanguage", () => {
       expect(result).toBe(true)
     })
 
+    it("should return true immediately when page detected language is in skipLanguages", async () => {
+      mockedGetDetectedCodeFromStorage.mockResolvedValueOnce("jpn")
+
+      const result = await shouldSkipByLanguage(
+        "This text should not need paragraph detection.",
+        ["jpn"],
+        false,
+        mockAPIProviderConfig,
+      )
+
+      expect(result).toBe(true)
+      expect(mockedDetect).not.toHaveBeenCalled()
+    })
+
     it("should return false when detected language is not in skipLanguages", async () => {
       mockedDetect.mockResolvedValueOnce("eng")
 
@@ -83,6 +109,7 @@ describe("shouldSkipByLanguage", () => {
 
     it("should return false when language cannot be detected", async () => {
       mockedDetect.mockResolvedValueOnce(null)
+      mockedGetDetectedCodeFromStorage.mockResolvedValueOnce("fra")
 
       const undetectableText = "12345 67890 !@#$%"
       const skipLanguages: LangCodeISO6393[] = ["jpn", "eng"]
