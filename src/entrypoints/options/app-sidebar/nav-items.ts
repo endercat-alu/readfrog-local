@@ -7,6 +7,7 @@ import { FloatingButtonPage } from "../pages/floating-button"
 import { GeneralPage } from "../pages/general"
 import { GlossaryPage } from "../pages/glossary"
 import { InputTranslationPage } from "../pages/input-translation"
+import { RulesPage } from "../pages/rules"
 import { SelectionToolbarPage } from "../pages/selection-toolbar"
 import { StatisticsPage } from "../pages/statistics"
 import { TextToSpeechPage } from "../pages/text-to-speech"
@@ -18,6 +19,7 @@ export const ROUTE_CONFIG = [
   { path: "/api-providers", component: ApiProvidersPage },
   { path: "/custom-features", component: CustomFeaturesPage },
   { path: "/translation", component: TranslationPage },
+  { path: "/rules", component: RulesPage },
   { path: "/glossary", component: GlossaryPage },
   { path: "/video-subtitles", component: VideoSubtitlesPage },
   { path: "/floating-button", component: FloatingButtonPage },

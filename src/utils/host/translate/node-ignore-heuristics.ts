@@ -1,7 +1,7 @@
 import type { Config } from "@/types/config/config"
 import type { NodeIgnoreHeuristicRule } from "@/types/config/translate"
+import type { NodeIgnoreHeuristicsConfig } from "@/types/config/translate"
 import type { TransNode } from "@/types/dom"
-import { DEFAULT_NODE_IGNORE_HEURISTIC_RULES, NODE_IGNORE_HEURISTIC_RULESET_VERSION } from "@/utils/constants/config"
 import { SEMANTIC_IGNORE_TAGS } from "@/utils/constants/dom-rules"
 import { isHTMLElement } from "../dom/filter"
 import { isNumericContent } from "./ui/translation-utils"
@@ -59,14 +59,6 @@ const COMMON_FILE_EXTENSIONS = new Set([
   "zst",
 ])
 
-const NEW_NODE_IGNORE_HEURISTIC_RULES: NodeIgnoreHeuristicRule[] = [
-  "shortFileLink",
-  "versionLike",
-  "fileSizeLike",
-  "usernameLike",
-  "repoOrPathLike",
-]
-
 const FILE_SIZE_PATTERN = /^\d+(?:\.\d+)?\s?(?:b|kb|mb|gb|tb|pb|kib|mib|gib|tib|pib)$/i
 const VERSION_PATTERN = /^(?:v|ver)\.?\s*\d+(?:\.\d+)*$/i
 const HEX_HASH_PATTERN = /^[a-f0-9]{16,}$/i
@@ -81,29 +73,12 @@ const anchorCache = new WeakMap<Node, HTMLAnchorElement | null>()
 const anchorTailCache = new WeakMap<HTMLAnchorElement, string | null>()
 const anchorTailIsFileCache = new WeakMap<HTMLAnchorElement, boolean>()
 
-export function getEnabledNodeIgnoreHeuristicRulesFromConfig(
-  heuristicConfig: Config["translate"]["page"]["nodeIgnoreHeuristics"] | undefined,
-): NodeIgnoreHeuristicRule[] {
-  const enabledRules = heuristicConfig?.enabledRules ?? DEFAULT_NODE_IGNORE_HEURISTIC_RULES
-
-  if ((heuristicConfig?.rulesetVersion ?? 1) >= NODE_IGNORE_HEURISTIC_RULESET_VERSION) {
-    return enabledRules
-  }
-
-  return Array.from(new Set([...enabledRules, ...NEW_NODE_IGNORE_HEURISTIC_RULES]))
+export function matchesSemanticTagHeuristic(element: HTMLElement): boolean {
+  return SEMANTIC_IGNORE_TAGS.has(element.tagName)
 }
 
-export function getEnabledNodeIgnoreHeuristicRules(config: Config): NodeIgnoreHeuristicRule[] {
-  return getEnabledNodeIgnoreHeuristicRulesFromConfig(config.translate.page.nodeIgnoreHeuristics)
-}
-
-export function isNodeIgnoreHeuristicEnabled(config: Config, rule: NodeIgnoreHeuristicRule): boolean {
-  return getEnabledNodeIgnoreHeuristicRules(config).includes(rule)
-}
-
-export function shouldIgnoreElementBySemanticTagHeuristic(element: HTMLElement, config: Config): boolean {
-  return isNodeIgnoreHeuristicEnabled(config, "semanticTags")
-    && SEMANTIC_IGNORE_TAGS.has(element.tagName)
+export function getEnabledNodeIgnoreHeuristicRulesFromConfig(config: NodeIgnoreHeuristicsConfig): NodeIgnoreHeuristicRule[] {
+  return config.enabledRules
 }
 
 function getAnchorForNode(node: TransNode): HTMLElement | null {
@@ -172,11 +147,11 @@ function getUrlTail(href: string): string | null {
   }
 }
 
-function isFileSizeLike(text: string): boolean {
+export function isFileSizeLike(text: string): boolean {
   return FILE_SIZE_PATTERN.test(text.trim())
 }
 
-function isVersionLike(text: string): boolean {
+export function isVersionLike(text: string): boolean {
   return VERSION_PATTERN.test(text.trim())
 }
 
@@ -318,7 +293,7 @@ function doesElementHintUsername(element: HTMLElement): boolean {
   return false
 }
 
-function isUsernameLikeContent(nodes: readonly TransNode[], text: string): boolean {
+export function isUsernameLikeContent(nodes: readonly TransNode[], text: string): boolean {
   const normalizedText = text.trim()
   if (!normalizedText || normalizedText.length > 40) {
     return false
@@ -361,7 +336,7 @@ function isPathLike(text: string): boolean {
   return UNIX_PATH_PATTERN.test(text) || WINDOWS_PATH_PATTERN.test(text)
 }
 
-function isRepoOrPathLikeContent(text: string): boolean {
+export function isRepoOrPathLikeContent(text: string): boolean {
   const normalizedText = text.trim()
   if (!normalizedText || normalizedText.length > 120 || /\s/.test(normalizedText)) {
     return false
@@ -374,57 +349,44 @@ export function isHashLikeOrFileNameContent(text: string): boolean {
   return isHexHashLike(text) || isFileNameLike(text)
 }
 
-export function shouldIgnoreTextByHeuristics(
+export function matchesTextHeuristicRule(
+  rule: Exclude<NodeIgnoreHeuristicRule, "semanticTags">,
   nodes: readonly TransNode[],
   text: string,
-  config: Config,
 ): boolean {
   const normalizedText = text.trim()
   if (!normalizedText) {
     return false
   }
 
-  const enabledRules = getEnabledNodeIgnoreHeuristicRules(config)
-  const linkTextTailEnabled = enabledRules.includes("linkTextTail")
-  const shortFileLinkEnabled = enabledRules.includes("shortFileLink")
-  const hashLikeOrFileNameEnabled = enabledRules.includes("hashLikeOrFileName")
-  const usernameLikeEnabled = enabledRules.includes("usernameLike")
-  const repoOrPathLikeEnabled = enabledRules.includes("repoOrPathLike")
-  const versionLikeEnabled = enabledRules.includes("versionLike")
-  const numericLikeEnabled = enabledRules.includes("numericLike")
-  const fileSizeLikeEnabled = enabledRules.includes("fileSizeLike")
-
-  if (linkTextTailEnabled && isLinkTextTailContent(nodes, normalizedText)) {
-    return true
+  switch (rule) {
+    case "linkTextTail":
+      return isLinkTextTailContent(nodes, normalizedText)
+    case "shortFileLink":
+      return isShortFileLinkContent(nodes, normalizedText)
+    case "hashLikeOrFileName":
+      return isHashLikeOrFileNameContent(normalizedText)
+    case "usernameLike":
+      return isUsernameLikeContent(nodes, normalizedText)
+    case "repoOrPathLike":
+      return isRepoOrPathLikeContent(normalizedText)
+    case "versionLike":
+      return isVersionLike(normalizedText)
+    case "numericLike":
+      return isNumericContent(normalizedText)
+    case "fileSizeLike":
+      return isFileSizeLike(normalizedText)
   }
+}
 
-  if (shortFileLinkEnabled && isShortFileLinkContent(nodes, normalizedText)) {
-    return true
-  }
+export function shouldIgnoreTextByHeuristics(
+  nodes: readonly TransNode[],
+  text: string,
+  config: Config,
+): boolean {
+  const enabledRules = config.translate.page.nodeIgnoreHeuristics.enabledRules.filter(
+    (rule): rule is Exclude<NodeIgnoreHeuristicRule, "semanticTags"> => rule !== "semanticTags",
+  )
 
-  if (hashLikeOrFileNameEnabled && isHashLikeOrFileNameContent(normalizedText)) {
-    return true
-  }
-
-  if (usernameLikeEnabled && isUsernameLikeContent(nodes, normalizedText)) {
-    return true
-  }
-
-  if (repoOrPathLikeEnabled && isRepoOrPathLikeContent(normalizedText)) {
-    return true
-  }
-
-  if (versionLikeEnabled && isVersionLike(normalizedText)) {
-    return true
-  }
-
-  if (numericLikeEnabled && isNumericContent(normalizedText)) {
-    return true
-  }
-
-  if (fileSizeLikeEnabled && isFileSizeLike(normalizedText)) {
-    return true
-  }
-
-  return false
+  return enabledRules.some(rule => matchesTextHeuristicRule(rule, nodes, text))
 }

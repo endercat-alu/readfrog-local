@@ -3,6 +3,7 @@ import type { DetectionSource } from "@/utils/content/language"
 import { Readability } from "@mozilla/readability"
 import { flattenToParagraphs } from "@/entrypoints/side.content/utils/article"
 import { detectLanguageWithSource } from "@/utils/content/language"
+import { hasEnabledLLMDetectionRule, hasEnabledRuleField } from "@/utils/host/translate/page-rules"
 import { getLocalConfig } from "../config/storage"
 import { logger } from "../logger"
 import { removeDummyNodes } from "./utils"
@@ -35,7 +36,9 @@ export async function getDocumentInfo(): Promise<{
   const textForDetection = `${title}\n\n${content}`
 
   // Detect language with optional LLM enhancement
-  const enableLLM = !!(config?.translate.page.enableLLMDetection && config?.translate.page.autoTranslateLanguages?.length > 0)
+  const rules = config?.translate.page.rules ?? []
+  const enablePageLanguageDetection = hasEnabledRuleField(rules, "pageLanguage")
+  const enableLLM = enablePageLanguageDetection && hasEnabledLLMDetectionRule(rules, "pageLanguage")
   const { code: detectedCodeOrUnd, source: detectionSource } = await detectLanguageWithSource(textForDetection, {
     enableLLM,
     maxLengthForLLM: 1500,

@@ -101,27 +101,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.translation.title",
   },
   {
-    sectionId: "auto-translate-website",
-    route: "/translation",
-    titleKey: "options.translation.autoTranslateWebsite.title",
-    descriptionKey: "options.translation.autoTranslateWebsite.description",
-    pageKey: "options.translation.title",
-  },
-  {
-    sectionId: "auto-translate-languages",
-    route: "/translation",
-    titleKey: "options.translation.autoTranslateLanguages.title",
-    descriptionKey: "options.translation.autoTranslateLanguages.description",
-    pageKey: "options.translation.title",
-  },
-  {
-    sectionId: "skip-languages",
-    route: "/translation",
-    titleKey: "options.translation.skipLanguages.title",
-    descriptionKey: "options.translation.skipLanguages.description",
-    pageKey: "options.translation.title",
-  },
-  {
     sectionId: "request-rate",
     route: "/translation",
     titleKey: "options.translation.requestQueueConfig.title",
@@ -142,25 +121,20 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.translation.title",
   },
   {
-    sectionId: "small-paragraph-filter",
-    route: "/translation",
-    titleKey: "options.translation.smallParagraphFilter.title",
-    descriptionKey: "options.translation.smallParagraphFilter.description",
-    pageKey: "options.translation.title",
-  },
-  {
-    sectionId: "node-ignore-heuristics",
-    route: "/translation",
-    titleKey: "options.translation.nodeIgnoreHeuristics.title",
-    descriptionKey: "options.translation.nodeIgnoreHeuristics.description",
-    pageKey: "options.translation.title",
-  },
-  {
     sectionId: "clear-cache",
     route: "/translation",
     titleKey: "options.general.clearCache.title",
     descriptionKey: "options.general.clearCache.description",
     pageKey: "options.translation.title",
+  },
+
+  // Page Rules page
+  {
+    sectionId: "page-rules",
+    route: "/rules",
+    titleKey: "options.pageRules.title",
+    descriptionKey: "options.pageRules.description",
+    pageKey: "options.pageRules.title",
   },
 
   // Glossary page

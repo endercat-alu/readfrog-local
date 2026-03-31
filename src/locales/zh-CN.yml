@@ -721,6 +721,50 @@ options:
       description: 为明显稳定或重复出现的文本建立可跨上下文复用的缓存，减少重复请求与磁盘读取
       enable: 启用共享文本缓存
       enableDescription: 默认开启。短文本会优先复用共享缓存；页面翻译中的重复模板文本或页脚等固定文案，也会在满足启发式条件时跨上下文复用。
+  pageRules:
+    title: 页面规则
+    description: 使用有序规则控制页面自动翻译与跳过行为
+    firstMatchDescription: 按列表顺序匹配，首条命中的规则立即生效。
+    addRule: 添加规则
+    defaultRuleName: 新规则
+    unnamedRule: 未命名规则
+    namePlaceholder: 规则名
+    matchSectionTitle: 匹配规则
+    actionSectionTitle: 匹配后的动作
+    addCondition: 添加条件
+    addGroup: 添加分组
+    emptyGroup: 空分组
+    emptyValue: 未填写
+    actionTypeLabel: 动作类型
+    actionScopeLabel: 执行范围
+    actionTypes:
+      translate: 翻译
+      skip: 跳过
+    actionScopes:
+      page: 页面级
+      paragraph: 段落级
+    detectionModes:
+      basic: 基础检测
+      llm: LLM 检测
+    fields:
+      host: Host 匹配
+      path: Path 匹配
+      url: URL 匹配
+      pageLanguage: 页面语言
+      paragraphLanguage: 段落语言
+      textLengthLessThan: 文本长度小于
+      wordCountLessThan: 词数小于
+      heuristic: 启发式规则
+    placeholders:
+      host: 例如 example.com
+      path: 例如 /news/*
+      url: 例如 https://example.com/docs/*
+      language: 选择语言
+      textLengthLessThan: 例如 10
+      wordCountLessThan: 例如 5
+    empty:
+      title: 还没有规则
+      description: 添加第一条规则后，页面会按顺序匹配并执行动作。
   glossary:
     title: 词汇表
     description: 定义专有名词、参考翻译与简介。LLM 翻译会把命中项注入提示词，机器翻译会在发送前替换原文中的命中词。

@@ -9,7 +9,7 @@ import {
   NOTRANSLATE_CLASS,
 } from "@/utils/constants/dom-labels"
 import { CUSTOM_DONT_WALK_INTO_ELEMENT_SELECTOR_MAP, CUSTOM_FORCE_BLOCK_TRANSLATION_SELECTOR_MAP, DONT_WALK_AND_TRANSLATE_TAGS, DONT_WALK_BUT_TRANSLATE_TAGS, FORCE_BLOCK_TAGS, MAIN_CONTENT_IGNORE_TAGS } from "@/utils/constants/dom-rules"
-import { shouldIgnoreElementBySemanticTagHeuristic } from "../translate/node-ignore-heuristics"
+import { shouldIgnoreElementByRules } from "../translate/page-rules"
 
 export function isEditable(element: HTMLElement): boolean {
   const tag = element.tagName
@@ -157,7 +157,7 @@ export function isDontWalkIntoAndDontTranslateAsChildElement(element: HTMLElemen
     && MAIN_CONTENT_IGNORE_TAGS.has(element.tagName)
     && !isInsideContentContainer(element)
   const dontWalkInvalidTag = DONT_WALK_AND_TRANSLATE_TAGS.has(element.tagName)
-  const dontWalkSemanticTag = shouldIgnoreElementBySemanticTagHeuristic(element, config)
+  const dontWalkSemanticTag = shouldIgnoreElementByRules(element, window.location.href, config)
   const computedStyle = window.getComputedStyle(element)
   const dontWalkCSS = computedStyle.display === "none" || computedStyle.visibility === "hidden"
   const dontWalkAriaHidden = element.getAttribute("aria-hidden") === "true"

@@ -1,4 +1,5 @@
 import type { Config } from "@/types/config/config"
+import type { PageRuleConditionField, PageRuleNode } from "@/types/config/translate"
 import { deepmergeCustom } from "deepmerge-ts"
 import { atom } from "jotai"
 import { selectAtom } from "jotai/utils"
@@ -8,6 +9,51 @@ import { logger } from "../logger"
 import { storageAdapter } from "./storage-adapter"
 
 export const configAtom = atom<Config>(DEFAULT_CONFIG)
+
+function getDefaultStringRuleValue(field: Extract<PageRuleConditionField, "host" | "path" | "url">): string {
+  switch (field) {
+    case "host":
+      return "example.com"
+    case "path":
+      return "/*"
+    case "url":
+      return "https://*"
+  }
+}
+
+function sanitizePageRuleNode(node: PageRuleNode): PageRuleNode {
+  if (node.kind === "group") {
+    return {
+      ...node,
+      items: node.items.map(sanitizePageRuleNode),
+    }
+  }
+
+  if ((node.field === "host" || node.field === "path" || node.field === "url") && !node.value.trim()) {
+    return {
+      ...node,
+      value: getDefaultStringRuleValue(node.field),
+    }
+  }
+
+  return node
+}
+
+function sanitizeConfig(config: Config): Config {
+  return {
+    ...config,
+    translate: {
+      ...config.translate,
+      page: {
+        ...config.translate.page,
+        rules: config.translate.page.rules.map(rule => ({
+          ...rule,
+          when: sanitizePageRuleNode(rule.when) as typeof rule.when,
+        })),
+      },
+    },
+  }
+}
 
 export const mergeWithArrayOverwrite = deepmergeCustom({
   // Use the last (source) array
@@ -41,7 +87,7 @@ export const writeConfigAtom = atom(
     // STEP 1: Optimistic update (immediate UI feedback)
     // ─────────────────────────────────────────────────────────────────────────
     const localPrev = get(configAtom)
-    const optimisticNext = mergeWithArrayOverwrite(localPrev, patch)
+    const optimisticNext = sanitizeConfig(mergeWithArrayOverwrite(localPrev, patch))
     set(configAtom, optimisticNext)
 
     // Capture version for this write (used for stale-write detection later)
@@ -58,7 +104,7 @@ export const writeConfigAtom = atom(
       // This ensures we don't lose concurrent field updates:
       //   write({x:1}) then write({y:2}) → storage ends up with {x:1, y:2}
       const configInStorage = await storageAdapter.get<Config>(CONFIG_STORAGE_KEY, DEFAULT_CONFIG, configSchema)
-      const nextToPersist = mergeWithArrayOverwrite(configInStorage, patch)
+      const nextToPersist = sanitizeConfig(mergeWithArrayOverwrite(configInStorage, patch))
 
       try {
         // Storage write always executes (not affected by version check)

@@ -10,8 +10,25 @@ describe("mergeWithArrayOverwrite", () => {
         ...DEFAULT_CONFIG.translate,
         page: {
           ...DEFAULT_CONFIG.translate.page,
-          autoTranslatePatterns: ["old.com"],
-          autoTranslateLanguages: ["eng"],
+          rules: [
+            {
+              id: "rule-old",
+              name: "Old rule",
+              enabled: true,
+              when: {
+                kind: "group",
+                id: "group-old",
+                operator: "and",
+                items: [
+                  { kind: "condition", id: "condition-old", field: "host", value: "old.com" },
+                ],
+              },
+              action: {
+                type: "translate",
+                scope: "page",
+              },
+            },
+          ],
         },
       },
       floatingButton: {
@@ -24,10 +41,27 @@ describe("mergeWithArrayOverwrite", () => {
       language: { targetCode: "jpn" },
       translate: {
         page: {
-          autoTranslatePatterns: ["new.com", "test.org"],
-          autoTranslateLanguages: [],
+          rules: [
+            {
+              id: "rule-new",
+              name: "New rule",
+              enabled: true,
+              when: {
+                kind: "group",
+                id: "group-new",
+                operator: "and",
+                items: [
+                  { kind: "condition", id: "condition-new", field: "host", value: "new.com" },
+                ],
+              },
+              action: {
+                type: "translate",
+                scope: "page",
+              },
+            },
+          ],
         },
-        mode: "replace",
+        mode: "translationOnly",
       },
       floatingButton: {
         disabledFloatingButtonPatterns: ["youtube.com"],
@@ -36,30 +70,18 @@ describe("mergeWithArrayOverwrite", () => {
 
     const result = mergeWithArrayOverwrite(config, patch)
 
-    // Arrays should be completely replaced
-    expect(result.translate.page.autoTranslatePatterns).toEqual(["new.com", "test.org"])
-    expect(result.translate.page.autoTranslateLanguages).toEqual([])
+    expect(result.translate.page.rules).toEqual(patch.translate.page.rules)
     expect(result.floatingButton.disabledFloatingButtonPatterns).toEqual(["youtube.com"])
-
-    expect(result.translate.mode).toBe("replace")
+    expect(result.translate.mode).toBe("translationOnly")
     expect(result.floatingButton.enabled).toBe(true)
-
-    // Ensure immutability
     expect(result).not.toBe(config)
-    expect(result.translate.page.autoTranslatePatterns).not.toBe(config.translate.page.autoTranslatePatterns)
+    expect(result.translate.page.rules).not.toBe(config.translate.page.rules)
   })
 
   it("should handle edge cases and type conversions", () => {
-    // Array to non-array conversion
     expect(mergeWithArrayOverwrite({ arr: [1, 2] }, { arr: "string" })).toEqual({ arr: "string" })
-
-    // Non-array to array conversion
     expect(mergeWithArrayOverwrite({ val: "text" }, { val: ["a", "b"] })).toEqual({ val: ["a", "b"] })
-
-    // Empty array overwrite
     expect(mergeWithArrayOverwrite({ items: ["x"] }, { items: [] })).toEqual({ items: [] })
-
-    // Null/undefined handling
     expect(mergeWithArrayOverwrite({ a: null }, { a: 1, b: undefined })).toEqual({ a: 1, b: undefined })
   })
 })

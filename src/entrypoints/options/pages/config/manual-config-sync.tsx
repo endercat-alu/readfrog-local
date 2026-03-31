@@ -28,6 +28,87 @@ import { queryClient } from "@/utils/tanstack-query"
 import { ConfigCard } from "../../components/config-card"
 import { ViewConfig } from "./components/view-config"
 
+function looksLikeConfigPayload(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false
+  }
+
+  return "language" in value || "providersConfig" in value || "translate" in value
+}
+
+function inferSchemaVersionFromFilename(fileName: string): number | null {
+  const match = fileName.match(/(?:^|[^0-9])v(\d{1,3})(?:[^0-9]|$)/i)
+  if (!match) {
+    return null
+  }
+
+  const version = Number.parseInt(match[1], 10)
+  return Number.isInteger(version) ? version : null
+}
+
+function inferSchemaVersionFromConfig(config: unknown): number {
+  const page = (config as any)?.translate?.page
+
+  if (Array.isArray(page?.rules)) {
+    return 67
+  }
+
+  if (
+    Array.isArray(page?.autoTranslatePatterns)
+    || Array.isArray(page?.autoTranslateLanguages)
+    || Array.isArray(page?.skipLanguages)
+  ) {
+    return 66
+  }
+
+  if (page?.nodeIgnoreHeuristics) {
+    return 64
+  }
+
+  if (typeof page?.minWordsPerNode === "number") {
+    return 43
+  }
+
+  if (typeof page?.minCharactersPerNode === "number") {
+    return 41
+  }
+
+  return 1
+}
+
+function resolveImportedConfigPayload(fileContent: string, fileName: string): {
+  schemaVersion: number
+  config: unknown
+} {
+  const parsed = JSON.parse(fileContent) as {
+    schemaVersion?: unknown
+    config?: unknown
+  }
+
+  if (typeof parsed.schemaVersion === "number" && Number.isInteger(parsed.schemaVersion) && parsed.config !== undefined) {
+    return {
+      schemaVersion: parsed.schemaVersion,
+      config: parsed.config,
+    }
+  }
+
+  if (parsed.config !== undefined && looksLikeConfigPayload(parsed.config)) {
+    return {
+      schemaVersion: inferSchemaVersionFromFilename(fileName) ?? inferSchemaVersionFromConfig(parsed.config),
+      config: parsed.config,
+    }
+  }
+
+  if (looksLikeConfigPayload(parsed)) {
+    return {
+      schemaVersion: inferSchemaVersionFromFilename(fileName) ?? inferSchemaVersionFromConfig(parsed),
+      config: parsed,
+    }
+  }
+
+  throw new TypeError("Invalid config payload")
+}
+
 export function ManualConfigSync() {
   const config = useAtomValue(configAtom)
   return (
@@ -68,21 +149,8 @@ function ImportConfig() {
         reader.readAsText(file)
       })
 
-      const parsed = JSON.parse(fileContent) as {
-        schemaVersion?: unknown
-        config?: unknown
-      }
-
-      const importConfigSchemaVersion = parsed.schemaVersion
-      if (typeof importConfigSchemaVersion !== "number" || !Number.isInteger(importConfigSchemaVersion)) {
-        throw new TypeError("Invalid config schemaVersion")
-      }
-
-      if (parsed.config === undefined) {
-        throw new TypeError("Missing config payload")
-      }
-
-      const newConfig = await migrateConfig(parsed.config, importConfigSchemaVersion)
+      const imported = resolveImportedConfigPayload(fileContent, file.name)
+      const newConfig = await migrateConfig(imported.config, imported.schemaVersion)
       await addBackup(currentConfig, EXTENSION_VERSION)
       await setConfig(newConfig)
     },

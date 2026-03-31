@@ -19,3 +19,16 @@ export function matchDomainPattern(url: string, pattern: string): boolean {
 
   return false
 }
+
+export function matchWildcardPattern(value: string, pattern: string): boolean {
+  const normalizedPattern = pattern.trim()
+  if (!normalizedPattern) {
+    return false
+  }
+
+  const escapedPattern = normalizedPattern
+    .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
+    .replaceAll("*", ".*")
+
+  return new RegExp(`^${escapedPattern}$`).test(value)
+}

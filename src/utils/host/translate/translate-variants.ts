@@ -7,8 +7,9 @@ import { resolveProviderConfig } from "@/utils/constants/feature-providers"
 import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { logger } from "@/utils/logger"
 import { getLocalConfig } from "../../config/storage"
+import { shouldSkipParagraphTranslationByRules } from "./page-rules"
 import { getPageTranslationRuntimeConfig } from "./runtime-config"
-import { buildLocalContextFingerprint, buildPageSharedTextCacheKey, MIN_LENGTH_FOR_SKIP_LLM_DETECTION, shouldSkipByLanguage, translateTextCore, translateTextCoreWithResult } from "./translate-text"
+import { buildLocalContextFingerprint, buildPageSharedTextCacheKey, MIN_LENGTH_FOR_SKIP_LLM_DETECTION, translateTextCore, translateTextCoreWithResult } from "./translate-text"
 
 async function getConfigOrThrow(): Promise<Config> {
   const runtimeConfig = getPageTranslationRuntimeConfig()
@@ -42,19 +43,16 @@ export async function translateTextForPageWithResult(
   const providerConfig = resolveProviderConfig(config, "translate")
   const pageDetectedCode = await getDetectedCodeFromStorage()
 
-  // Skip translation if text is in skipLanguages list (page translation only)
-  const { skipLanguages, enableSkipLanguagesLLMDetection } = config.translate.page
-  if (skipLanguages.length > 0 && text.length >= MIN_LENGTH_FOR_SKIP_LLM_DETECTION) {
-    const shouldSkip = skipLanguages.includes(pageDetectedCode)
-      || await shouldSkipByLanguage(
-        text,
-        skipLanguages,
-        enableSkipLanguagesLLMDetection,
-        providerConfig,
-        pageDetectedCode,
-      )
+  if (text.length >= MIN_LENGTH_FOR_SKIP_LLM_DETECTION) {
+    const shouldSkip = await shouldSkipParagraphTranslationByRules(
+      text,
+      typeof window !== "undefined" ? window.location.href : "",
+      config,
+      providerConfig,
+      pageDetectedCode,
+    )
     if (shouldSkip) {
-      logger.info(`translateTextForPage: skipping translation because text is in skip language list. text: ${text}`)
+      logger.info(`translateTextForPage: skipping translation because page rule matched. text: ${text}`)
       return { translation: "" }
     }
   }

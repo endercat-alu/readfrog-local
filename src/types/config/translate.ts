@@ -1,7 +1,7 @@
 import { langCodeISO6393Schema } from "@read-frog/definitions"
 import { z } from "zod"
 import { HOTKEYS } from "@/utils/constants/hotkeys"
-import { DEFAULT_PARAGRAPH_LINES_PER_SEGMENT, MAX_PRELOAD_MARGIN, MAX_PRELOAD_THRESHOLD, MIN_BATCH_CHARACTERS, MIN_BATCH_ITEMS, MIN_CHARACTERS_PER_NODE, MIN_PARAGRAPH_LINES_PER_SEGMENT, MIN_PRELOAD_MARGIN, MIN_PRELOAD_THRESHOLD, MIN_TRANSLATE_CAPACITY, MIN_TRANSLATE_RATE, MIN_WORDS_PER_NODE } from "@/utils/constants/translate"
+import { DEFAULT_PARAGRAPH_LINES_PER_SEGMENT, MAX_PRELOAD_MARGIN, MAX_PRELOAD_THRESHOLD, MIN_BATCH_CHARACTERS, MIN_BATCH_ITEMS, MIN_PARAGRAPH_LINES_PER_SEGMENT, MIN_PRELOAD_MARGIN, MIN_PRELOAD_THRESHOLD, MIN_TRANSLATE_CAPACITY, MIN_TRANSLATE_RATE } from "@/utils/constants/translate"
 import { TRANSLATION_NODE_STYLE } from "@/utils/constants/translation-node-style"
 
 export const requestQueueConfigSchema = z.object({
@@ -60,6 +60,147 @@ export const preloadConfigSchema = z.object({
 })
 export type PreloadConfig = z.infer<typeof preloadConfigSchema>
 
+export const RULE_LOGICAL_OPERATORS = ["and", "or"] as const
+export const ruleLogicalOperatorSchema = z.enum(RULE_LOGICAL_OPERATORS)
+export type RuleLogicalOperator = z.infer<typeof ruleLogicalOperatorSchema>
+
+export const RULE_LANGUAGE_DETECTION_MODES = ["basic", "llm"] as const
+export const ruleLanguageDetectionModeSchema = z.enum(RULE_LANGUAGE_DETECTION_MODES)
+export type RuleLanguageDetectionMode = z.infer<typeof ruleLanguageDetectionModeSchema>
+
+export const PAGE_RULE_CONDITION_FIELDS = ["host", "path", "url", "pageLanguage", "paragraphLanguage", "textLengthLessThan", "wordCountLessThan", "heuristic"] as const
+export const pageRuleConditionFieldSchema = z.enum(PAGE_RULE_CONDITION_FIELDS)
+export type PageRuleConditionField = z.infer<typeof pageRuleConditionFieldSchema>
+
+const baseRuleConditionSchema = z.object({
+  kind: z.literal("condition"),
+  id: z.string().nonempty(),
+})
+
+const stringRuleConditionSchema = z.string().trim().min(1)
+
+export const hostRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("host"),
+  value: stringRuleConditionSchema,
+})
+
+export const pathRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("path"),
+  value: stringRuleConditionSchema,
+})
+
+export const urlRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("url"),
+  value: stringRuleConditionSchema,
+})
+
+export const pageLanguageRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("pageLanguage"),
+  value: langCodeISO6393Schema,
+  detectionMode: ruleLanguageDetectionModeSchema,
+})
+
+export const paragraphLanguageRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("paragraphLanguage"),
+  value: langCodeISO6393Schema,
+  detectionMode: ruleLanguageDetectionModeSchema,
+})
+
+export const textLengthLessThanRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("textLengthLessThan"),
+  value: z.number().int().positive(),
+})
+
+export const wordCountLessThanRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("wordCountLessThan"),
+  value: z.number().int().positive(),
+})
+
+export const heuristicRuleConditionSchema = baseRuleConditionSchema.extend({
+  field: z.literal("heuristic"),
+  value: nodeIgnoreHeuristicRuleSchema,
+})
+
+export const pageRuleConditionSchema = z.discriminatedUnion("field", [
+  hostRuleConditionSchema,
+  pathRuleConditionSchema,
+  urlRuleConditionSchema,
+  pageLanguageRuleConditionSchema,
+  paragraphLanguageRuleConditionSchema,
+  textLengthLessThanRuleConditionSchema,
+  wordCountLessThanRuleConditionSchema,
+  heuristicRuleConditionSchema,
+])
+export type PageRuleCondition = z.infer<typeof pageRuleConditionSchema>
+
+export interface PageRuleGroup {
+  kind: "group"
+  id: string
+  operator: RuleLogicalOperator
+  items: PageRuleNode[]
+}
+
+export type PageRuleNode = PageRuleGroup | PageRuleCondition
+
+export const pageRuleNodeSchema: z.ZodType<PageRuleNode> = z.lazy(() =>
+  z.union([
+    pageRuleConditionSchema,
+    z.object({
+      kind: z.literal("group"),
+      id: z.string().nonempty(),
+      operator: ruleLogicalOperatorSchema,
+      items: z.array(pageRuleNodeSchema),
+    }),
+  ]),
+)
+
+export const pageRuleGroupSchema: z.ZodType<PageRuleGroup> = z.lazy(() =>
+  z.object({
+    kind: z.literal("group"),
+    id: z.string().nonempty(),
+    operator: ruleLogicalOperatorSchema,
+    items: z.array(pageRuleNodeSchema),
+  }),
+)
+
+export const PAGE_RULE_ACTION_TYPES = ["translate", "skip"] as const
+export const pageRuleActionTypeSchema = z.enum(PAGE_RULE_ACTION_TYPES)
+export type PageRuleActionType = z.infer<typeof pageRuleActionTypeSchema>
+
+export const PAGE_RULE_ACTION_SCOPES = ["page", "paragraph"] as const
+export const pageRuleActionScopeSchema = z.enum(PAGE_RULE_ACTION_SCOPES)
+export type PageRuleActionScope = z.infer<typeof pageRuleActionScopeSchema>
+
+export const pageRuleActionSchema = z.object({
+  type: pageRuleActionTypeSchema,
+  scope: pageRuleActionScopeSchema,
+}).superRefine((data, ctx) => {
+  if (data.type === "translate" && data.scope !== "page") {
+    ctx.addIssue({
+      code: "custom",
+      message: "Translate rules only support page scope",
+      path: ["scope"],
+    })
+  }
+})
+export type PageRuleAction = z.infer<typeof pageRuleActionSchema>
+
+export const pageRuleMetaSchema = z.object({
+  source: z.literal("popupAlwaysTranslate"),
+  host: z.string().trim().min(1),
+})
+export type PageRuleMeta = z.infer<typeof pageRuleMetaSchema>
+
+export const pageRuleSchema = z.object({
+  id: z.string().nonempty(),
+  name: z.string().trim().min(1),
+  enabled: z.boolean(),
+  when: pageRuleGroupSchema,
+  action: pageRuleActionSchema,
+  meta: pageRuleMetaSchema.optional(),
+})
+export type PageRule = z.infer<typeof pageRuleSchema>
+
 // Translation node style preset (excluding 'custom' - controlled by isCustom flag)
 export const translationNodeStylePresetSchema = z.enum(TRANSLATION_NODE_STYLE)
 export type TranslationNodeStylePreset = z.infer<typeof translationNodeStylePresetSchema>
@@ -114,17 +255,16 @@ export const translateConfigSchema = z.object({
   }),
   page: z.object({
     range: pageTranslateRangeSchema,
-    autoTranslatePatterns: z.array(z.string()),
-    autoTranslateLanguages: z.array(langCodeISO6393Schema),
+    rules: z.array(pageRuleSchema),
+    minCharactersPerNode: z.number().int().gte(0).default(0),
+    minWordsPerNode: z.number().int().gte(0).default(0),
+    nodeIgnoreHeuristics: nodeIgnoreHeuristicsConfigSchema.default({
+      rulesetVersion: 1,
+      enabledRules: [],
+    }),
     shortcut: z.array(z.string()),
-    enableLLMDetection: z.boolean(),
     preload: preloadConfigSchema,
-    minCharactersPerNode: z.number().min(MIN_CHARACTERS_PER_NODE),
-    minWordsPerNode: z.number().min(MIN_WORDS_PER_NODE),
-    skipLanguages: z.array(langCodeISO6393Schema),
-    enableSkipLanguagesLLMDetection: z.boolean(),
     paragraphSegmentation: paragraphSegmentationConfigSchema,
-    nodeIgnoreHeuristics: nodeIgnoreHeuristicsConfigSchema,
   }),
   enableAIContentAware: z.boolean(),
   aiContentAwareMode: aiContentAwareModeSchema,

@@ -721,6 +721,50 @@ options:
       description: Reuse clearly stable or repeated text across contexts to reduce repeated requests and disk reads
       enable: Enable Shared Text Cache
       enableDescription: Enabled by default. Short text reuses the shared cache first, and repeated template text or boilerplate content on pages can also reuse it when the heuristic is confident.
+  pageRules:
+    title: Page Rules
+    description: Use ordered rules to control automatic page translation and skip behavior
+    firstMatchDescription: Rules are evaluated top to bottom, and the first matching rule wins.
+    addRule: Add Rule
+    defaultRuleName: New Rule
+    unnamedRule: Unnamed Rule
+    namePlaceholder: Rule name
+    matchSectionTitle: Matching Rules
+    actionSectionTitle: Action
+    addCondition: Add Condition
+    addGroup: Add Group
+    emptyGroup: Empty group
+    emptyValue: Empty
+    actionTypeLabel: Action Type
+    actionScopeLabel: Action Scope
+    actionTypes:
+      translate: Translate
+      skip: Skip
+    actionScopes:
+      page: Page
+      paragraph: Paragraph
+    detectionModes:
+      basic: Basic Detection
+      llm: LLM Detection
+    fields:
+      host: Host matches
+      path: Path matches
+      url: URL matches
+      pageLanguage: Page language
+      paragraphLanguage: Paragraph language
+      textLengthLessThan: Text length less than
+      wordCountLessThan: Word count less than
+      heuristic: Heuristic rule
+    placeholders:
+      host: e.g. example.com
+      path: e.g. /news/*
+      url: e.g. https://example.com/docs/*
+      language: Select language
+      textLengthLessThan: e.g. 10
+      wordCountLessThan: e.g. 5
+    empty:
+      title: No rules yet
+      description: Add your first rule to start matching pages in order.
   glossary:
     title: Glossary
     description: Define proper nouns, preferred translations, and descriptions. LLM translation injects matches into the prompt, while machine translation replaces matched terms before sending.

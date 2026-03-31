@@ -7,7 +7,7 @@ import {
   WALKED_ATTRIBUTE,
 } from "@/utils/constants/dom-labels"
 import { FORCE_BLOCK_TAGS } from "@/utils/constants/dom-rules"
-import { shouldIgnoreElementBySemanticTagHeuristic } from "../translate/node-ignore-heuristics"
+import { shouldIgnoreElementByRules } from "../translate/page-rules"
 import {
   getShallowElementDisplayKind,
   isCustomForceBlockTranslation,
@@ -60,7 +60,7 @@ export function extractTextContent(node: TransNode, config: Config): string {
   //   return ''
   // }
 
-  if (shouldIgnoreElementBySemanticTagHeuristic(node, config)) {
+  if (shouldIgnoreElementByRules(node, window.location.href, config)) {
     return ""
   }
 

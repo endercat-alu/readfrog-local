@@ -7,6 +7,8 @@ import {
   TRANSLATION_MODE_VALUE,
   WALKED_ATTRIBUTE,
 } from "../../../constants/dom-labels"
+import { getDetectedCodeFromStorage } from "@/utils/config/languages"
+import { resolveProviderConfig } from "@/utils/constants/feature-providers"
 import { batchDOMOperation, flushBatchedOperations } from "../../dom/batch-dom"
 import { isBlockTransNode, isHTMLElement, isTextNode, isTransNode } from "../../dom/filter"
 import { unwrapDeepestOnlyHTMLChild } from "../../dom/find"
@@ -16,8 +18,7 @@ import { removeTranslatedWrapperWithRestore, shouldRestoreOriginalContentForWrap
 import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
 import { applyCacheHitMetadata } from "../cache-hit-debug"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
-import { shouldFilterSmallParagraph } from "../filter-small-paragraph"
-import { shouldIgnoreTextByHeuristics } from "../node-ignore-heuristics"
+import { shouldSkipParagraphTranslationByRules } from "../page-rules"
 import { setPageTranslationRuntimeConfig } from "../runtime-config"
 import { setTranslationDirAndLang } from "../translation-attributes"
 import { createSpinnerInside, getTranslatedTextAndRemoveSpinner } from "../ui/spinner"
@@ -91,10 +92,10 @@ export async function translateNodesBilingualMode(
     }
 
     const textContent = transNodes.map(node => extractTextContent(node, config)).join("").trim()
-    if (!textContent || shouldIgnoreTextByHeuristics(transNodes, textContent, config))
+    if (!textContent)
       return
 
-    if (await shouldFilterSmallParagraph(textContent, config))
+    if (await shouldSkipParagraphTranslationByRules(textContent, window.location.href, config, resolveProviderConfig(config, "translate"), await getDetectedCodeFromStorage(), transNodes))
       return
 
     if (options?.signal?.aborted)
@@ -246,10 +247,10 @@ export async function translateNodeTranslationOnlyMode(
     }
 
     const innerTextContent = transNodes.map(node => extractTextContent(node, config)).join("")
-    if (!innerTextContent.trim() || shouldIgnoreTextByHeuristics(transNodes, innerTextContent, config))
+    if (!innerTextContent.trim())
       return
 
-    if (await shouldFilterSmallParagraph(innerTextContent, config))
+    if (await shouldSkipParagraphTranslationByRules(innerTextContent, window.location.href, config, resolveProviderConfig(config, "translate"), await getDetectedCodeFromStorage(), transNodes))
       return
 
     const cleanTextContent = (content: string): string => {

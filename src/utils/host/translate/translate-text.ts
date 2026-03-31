@@ -147,7 +147,7 @@ function buildLanguageDetectionCacheKey(
   return `${detectionMode}:${normalizedText}`
 }
 
-async function detectLanguageCached(
+export async function detectLanguageCached(
   text: string,
   options?: DetectLanguageOptions,
 ): Promise<LangCodeISO6393 | null> {

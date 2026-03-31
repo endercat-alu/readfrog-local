@@ -69,6 +69,7 @@ import { migrate as migrateV062ToV063 } from "./migration-scripts/v062-to-v063"
 import { migrate as migrateV063ToV064 } from "./migration-scripts/v063-to-v064"
 import { migrate as migrateV064ToV065 } from "./migration-scripts/v064-to-v065"
 import { migrate as migrateV065ToV066 } from "./migration-scripts/v065-to-v066"
+import { migrate as migrateV066ToV067 } from "./migration-scripts/v066-to-v067"
 
 export const LATEST_SCHEMA_VERSION = CONFIG_SCHEMA_VERSION
 
@@ -141,6 +142,7 @@ export const migrationScripts: Record<number, MigrationFunction> = {
   64: migrateV063ToV064,
   65: migrateV064ToV065,
   66: migrateV065ToV066,
+  67: migrateV066ToV067,
 }
 
 export async function runMigration(version: number, config: any): Promise<any> {
@@ -151,6 +153,70 @@ export async function runMigration(version: number, config: any): Promise<any> {
   }
 
   return migrationFn(config)
+}
+
+function mergeUniqueRules(existingRules: any[], generatedRules: any[]) {
+  const seen = new Set<string>()
+  const result = []
+
+  for (const rule of [...existingRules, ...generatedRules]) {
+    if (!rule || typeof rule !== "object") {
+      continue
+    }
+
+    const id = typeof rule.id === "string" ? rule.id : JSON.stringify(rule)
+    if (seen.has(id)) {
+      continue
+    }
+
+    seen.add(id)
+    result.push(rule)
+  }
+
+  return result
+}
+
+function normalizeLegacyPageRulesConfig(config: unknown): unknown {
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    return config
+  }
+
+  const page = (config as any).translate?.page
+  if (!page || typeof page !== "object" || Array.isArray(page)) {
+    return config
+  }
+
+  const existingRules = Array.isArray(page.rules) ? page.rules : []
+  const hasLegacyAutoFields
+    = (Array.isArray(page.autoTranslatePatterns) && page.autoTranslatePatterns.length > 0)
+      || (Array.isArray(page.autoTranslateLanguages) && page.autoTranslateLanguages.length > 0)
+      || (Array.isArray(page.skipLanguages) && page.skipLanguages.length > 0)
+      || typeof page.enableLLMDetection === "boolean"
+      || typeof page.enableSkipLanguagesLLMDetection === "boolean"
+  const hasLegacyParagraphFilters
+    = (typeof page.minCharactersPerNode === "number" && page.minCharactersPerNode > 0)
+      || (typeof page.minWordsPerNode === "number" && page.minWordsPerNode > 0)
+      || (Array.isArray(page.nodeIgnoreHeuristics?.enabledRules) && page.nodeIgnoreHeuristics.enabledRules.length > 0)
+
+  if (!hasLegacyAutoFields && !(existingRules.length === 0 && hasLegacyParagraphFilters)) {
+    return config
+  }
+
+  const migrated = migrateV066ToV067(config)
+  const generatedRules = Array.isArray((migrated as any).translate?.page?.rules)
+    ? (migrated as any).translate.page.rules
+    : []
+
+  return {
+    ...(migrated as any),
+    translate: {
+      ...(migrated as any).translate,
+      page: {
+        ...(migrated as any).translate.page,
+        rules: mergeUniqueRules(existingRules, generatedRules),
+      },
+    },
+  }
 }
 
 export async function migrateConfig(originalConfig: unknown, originalConfigSchemaVersion: number): Promise<Config> {
@@ -166,6 +232,8 @@ export async function migrateConfig(originalConfig: unknown, originalConfigSchem
       currentVersion = nextVersion
     }
   }
+
+  originalConfig = normalizeLegacyPageRulesConfig(originalConfig)
 
   const parseResult = configSchema.safeParse(originalConfig)
   if (!parseResult.success) {

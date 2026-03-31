@@ -59,6 +59,13 @@ export function SettingsNav() {
           </SidebarMenuItem>
 
           <SidebarMenuItem>
+            <SidebarMenuButton render={<Link to="/rules" />} isActive={pathname === "/rules"}>
+              <Icon icon="tabler:route-alt-left" />
+              <span>{i18n.t("options.pageRules.title")}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
             <SidebarMenuButton render={<Link to="/glossary" />} isActive={pathname === "/glossary"}>
               <Icon icon="tabler:book-2" />
               <span>{i18n.t("options.glossary.title")}</span>

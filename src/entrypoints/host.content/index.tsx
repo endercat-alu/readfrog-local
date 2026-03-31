@@ -14,6 +14,7 @@ import { getLocalConfig } from "@/utils/config/storage"
 import { APP_NAME } from "@/utils/constants/app"
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG, DETECTED_CODE_STORAGE_KEY } from "@/utils/constants/config"
 import { getDocumentInfo } from "@/utils/content/analyze"
+import { shouldProcessAutoPageRulesForUrl } from "@/utils/host/translate/page-rules"
 import { logger } from "@/utils/logger"
 import { onMessage, sendMessage } from "@/utils/message"
 import { protectSelectAllShadowRoot } from "@/utils/select-all"
@@ -21,7 +22,6 @@ import { insertShadowRootUIWrapperInto } from "@/utils/shadow-root"
 import { isSiteEnabled } from "@/utils/site-control"
 import { addStyleToShadow, injectBaseStylesToShadow } from "@/utils/styles"
 import { getLocalThemeMode } from "@/utils/theme"
-import { matchDomainPattern } from "@/utils/url"
 import App from "./app"
 import { bindTranslationShortcutKey } from "./translation-control/bind-translation-shortcut"
 import { handleTranslationModeChange } from "./translation-control/handle-config-change"
@@ -142,13 +142,7 @@ export default defineContentScript({
     let urlChangeVersion = 0
 
     const shouldProcessAutoTranslationForUrl = (url: string) => {
-      const autoTranslatePatterns = latestConfig.translate.page.autoTranslatePatterns
-      const autoTranslateLanguages = latestConfig.translate.page.autoTranslateLanguages
-
-      if (autoTranslateLanguages.length > 0)
-        return true
-
-      return autoTranslatePatterns.some(pattern => matchDomainPattern(url, pattern))
+      return shouldProcessAutoPageRulesForUrl(url, latestConfig)
     }
 
     const scheduleUrlChangeWork = (to: string) => {

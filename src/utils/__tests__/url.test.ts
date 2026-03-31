@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { matchDomainPattern } from "../url"
+import { matchDomainPattern, matchWildcardPattern } from "../url"
 
 describe("matchDomainPattern", () => {
   describe("exact domain match", () => {
@@ -207,5 +207,27 @@ describe("matchDomainPattern", () => {
       const result = matchDomainPattern("https://en.wikipedia.org/wiki/Article", "wikipedia.org")
       expect(result).toBe(true)
     })
+  })
+})
+
+describe("matchWildcardPattern", () => {
+  it("matches exact strings", () => {
+    expect(matchWildcardPattern("/news", "/news")).toBe(true)
+  })
+
+  it("matches wildcard prefixes", () => {
+    expect(matchWildcardPattern("/news/world", "/news/*")).toBe(true)
+  })
+
+  it("matches wildcard suffixes", () => {
+    expect(matchWildcardPattern("https://example.com/docs/a", "https://example.com/docs/*")).toBe(true)
+  })
+
+  it("does not match different values", () => {
+    expect(matchWildcardPattern("/docs/a", "/news/*")).toBe(false)
+  })
+
+  it("rejects empty patterns", () => {
+    expect(matchWildcardPattern("/docs/a", "   ")).toBe(false)
   })
 })
