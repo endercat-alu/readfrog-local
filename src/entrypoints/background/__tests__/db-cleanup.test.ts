@@ -8,6 +8,8 @@ const translationDeleteMock = vi.fn()
 const translationWhereMock = vi.fn()
 const stableTranslationDeleteMock = vi.fn()
 const stableTranslationWhereMock = vi.fn()
+const cacheAccessBucketDeleteMock = vi.fn()
+const cacheAccessBucketWhereMock = vi.fn()
 const cacheAccessDeleteMock = vi.fn()
 const cacheAccessWhereMock = vi.fn()
 
@@ -63,6 +65,10 @@ vi.mock("@/utils/db/dexie/db", () => ({
       where: cacheAccessWhereMock,
       clear: vi.fn(),
     },
+    cacheAccessBucket: {
+      where: cacheAccessBucketWhereMock,
+      clear: vi.fn(),
+    },
     batchRequestRecord: {
       count: requestCountMock,
       orderBy: requestOrderByMock,
@@ -105,6 +111,12 @@ describe("setUpDatabaseCleanup", () => {
     stableTranslationWhereMock.mockReturnValue({
       below: () => ({
         delete: stableTranslationDeleteMock,
+      }),
+    })
+    cacheAccessBucketDeleteMock.mockResolvedValue(0)
+    cacheAccessBucketWhereMock.mockReturnValue({
+      below: () => ({
+        delete: cacheAccessBucketDeleteMock,
       }),
     })
     cacheAccessDeleteMock.mockResolvedValue(0)
@@ -183,6 +195,7 @@ describe("setUpDatabaseCleanup", () => {
     await alarmListener({ name: TRANSLATION_CACHE_CLEANUP_ALARM })
     expect(translationWhereMock).toHaveBeenCalledTimes(1)
     expect(stableTranslationWhereMock).toHaveBeenCalledTimes(1)
+    expect(cacheAccessBucketWhereMock).toHaveBeenCalledTimes(1)
     expect(cacheAccessWhereMock).toHaveBeenCalledTimes(1)
     expect(requestCountMock).not.toHaveBeenCalled()
     expect(summaryWhereMock).not.toHaveBeenCalled()

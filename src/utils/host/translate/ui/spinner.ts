@@ -86,7 +86,7 @@ export async function getTranslatedTextAndRemoveSpinner(
   let translatedResult: TranslationResult | undefined
 
   try {
-    translatedResult = await translateTextForPageWithResult(textContent)
+    translatedResult = await translateTextForPageWithResult(textContent, { nodes })
     if (options?.signal?.aborted) {
       return undefined
     }

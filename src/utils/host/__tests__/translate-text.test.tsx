@@ -43,7 +43,7 @@ describe("translate-text", () => {
 
   describe("translateTextForPage", () => {
     it("should send message with correct parameters", async () => {
-      mockSendMessage.mockResolvedValue("translated text")
+      mockSendMessage.mockResolvedValue({ translation: "translated text" })
 
       const result = await translateTextForPage("test text")
 
@@ -58,7 +58,7 @@ describe("translate-text", () => {
     })
 
     it("should attach stableCacheKey for eligible short text when enabled", async () => {
-      mockSendMessage.mockResolvedValue("translated text")
+      mockSendMessage.mockResolvedValue({ translation: "translated text" })
 
       await translateTextForPage("Download")
 
@@ -69,7 +69,7 @@ describe("translate-text", () => {
     })
 
     it("should not attach stableCacheKey for long text", async () => {
-      mockSendMessage.mockResolvedValue("translated text")
+      mockSendMessage.mockResolvedValue({ translation: "translated text" })
 
       await translateTextForPage("This is a much longer paragraph-like sentence that should not use the short text stable cache.")
 
@@ -79,7 +79,7 @@ describe("translate-text", () => {
     })
 
     it("should not attach stableCacheKey when disabled by config", async () => {
-      mockSendMessage.mockResolvedValue("translated text")
+      mockSendMessage.mockResolvedValue({ translation: "translated text" })
       mockGetConfigFromStorage.mockResolvedValue({
         ...DEFAULT_CONFIG,
         translate: {

@@ -45,7 +45,7 @@ export async function setUpDatabaseCleanup() {
   browser.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === TRANSLATION_CACHE_CLEANUP_ALARM) {
       await cleanupOldTranslationCache()
-      await cleanupOldCacheAccessRecords()
+      await cleanupOldCacheAccessStats()
     }
     else if (alarm.name === REQUEST_RECORD_CLEANUP_ALARM) {
       await cleanupOldRequestRecords()
@@ -82,22 +82,29 @@ async function cleanupOldTranslationCache() {
   }
 }
 
-async function cleanupOldCacheAccessRecords() {
+async function cleanupOldCacheAccessStats() {
   try {
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - CACHE_ACCESS_RECORD_MAX_AGE_DAYS)
 
-    const deletedCount = await db.cacheAccessRecord
-      .where("createdAt")
-      .below(cutoffDate)
-      .delete()
+    const [deletedBucketCount, deletedLegacyRecordCount] = await Promise.all([
+      db.cacheAccessBucket
+        .where("bucketStart")
+        .below(cutoffDate)
+        .delete(),
+      db.cacheAccessRecord
+        .where("createdAt")
+        .below(cutoffDate)
+        .delete(),
+    ])
+    const deletedCount = deletedBucketCount + deletedLegacyRecordCount
 
     if (deletedCount > 0) {
-      logger.info(`Cache access records cleanup: Deleted ${deletedCount} entries older than ${CACHE_ACCESS_RECORD_MAX_AGE_DAYS} days`)
+      logger.info(`Cache access stats cleanup: Deleted ${deletedCount} entries older than ${CACHE_ACCESS_RECORD_MAX_AGE_DAYS} days`)
     }
   }
   catch (error) {
-    logger.error("Failed to cleanup old cache access records:", error)
+    logger.error("Failed to cleanup old cache access stats:", error)
   }
 }
 

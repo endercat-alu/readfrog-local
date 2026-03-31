@@ -715,10 +715,10 @@ options:
         viewport: 仅视口
         document: 整页内容
     shortTextCache:
-      title: 短文本稳定缓存
-      description: 为明显稳定的短文本建立上下文无关缓存，减少重复请求与磁盘读取
-      enable: 启用短文本稳定缓存
-      enableDescription: 默认开启。对如 Download、Settings 这类短文本，优先复用稳定缓存；较长或明显依赖上下文的文本仍走原有缓存路径。
+      title: 共享文本缓存
+      description: 为明显稳定或重复出现的文本建立可跨上下文复用的缓存，减少重复请求与磁盘读取
+      enable: 启用共享文本缓存
+      enableDescription: 默认开启。短文本会优先复用共享缓存；页面翻译中的重复模板文本或页脚等固定文案，也会在满足启发式条件时跨上下文复用。
   glossary:
     title: 词汇表
     description: 定义专有名词、参考翻译与简介。LLM 翻译会把命中项注入提示词，机器翻译会在发送前替换原文中的命中词。

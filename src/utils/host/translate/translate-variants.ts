@@ -3,10 +3,11 @@ import type { Config, InputTranslationLang } from "@/types/config/config"
 import type { TranslationResult } from "@/types/translation-cache"
 import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/languages"
 import { resolveProviderConfig } from "@/utils/constants/feature-providers"
+import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { logger } from "@/utils/logger"
 import { getLocalConfig } from "../../config/storage"
 import { getPageTranslationRuntimeConfig } from "./runtime-config"
-import { MIN_LENGTH_FOR_SKIP_LLM_DETECTION, shouldSkipByLanguage, translateTextCore, translateTextCoreWithResult } from "./translate-text"
+import { buildLocalContextFingerprint, buildPageSharedTextCacheKey, MIN_LENGTH_FOR_SKIP_LLM_DETECTION, shouldSkipByLanguage, translateTextCore, translateTextCoreWithResult } from "./translate-text"
 
 async function getConfigOrThrow(): Promise<Config> {
   const runtimeConfig = getPageTranslationRuntimeConfig()
@@ -30,7 +31,12 @@ export async function translateTextForPage(text: string): Promise<string> {
   return result.translation
 }
 
-export async function translateTextForPageWithResult(text: string): Promise<TranslationResult> {
+export async function translateTextForPageWithResult(
+  text: string,
+  options?: {
+    nodes?: ChildNode[]
+  },
+): Promise<TranslationResult> {
   const config = await getConfigOrThrow()
   const providerConfig = resolveProviderConfig(config, "translate")
 
@@ -49,6 +55,21 @@ export async function translateTextForPageWithResult(text: string): Promise<Tran
     }
   }
 
+  const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, config.glossary.entries)
+  const exactCacheContextFingerprint = options?.nodes
+    ? buildLocalContextFingerprint(options.nodes, config).fingerprint
+    : undefined
+  const sharedCacheKey = options?.nodes
+    ? await buildPageSharedTextCacheKey(
+        preparedTranslation.text,
+        options.nodes,
+        config,
+        providerConfig,
+        { sourceCode: config.language.sourceCode, targetCode: config.language.targetCode },
+        preparedTranslation.glossaryPrompt,
+      )
+    : undefined
+
   return translateTextCoreWithResult({
     text,
     langConfig: config.language,
@@ -57,6 +78,8 @@ export async function translateTextForPageWithResult(text: string): Promise<Tran
     enableShortTextCache: config.translate.enableShortTextCache,
     enableAIContentAware: config.translate.enableAIContentAware,
     aiContentAwareMode: config.translate.aiContentAwareMode,
+    exactCacheContextFingerprint,
+    sharedCacheKey,
   })
 }
 

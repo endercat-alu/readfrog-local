@@ -26,14 +26,26 @@ import { ensureInitializedConfig } from "./config"
 const TRANSLATION_MEMORY_CACHE_MAX_SIZE = 4000
 const TRANSLATION_MEMORY_CACHE_TTL_MS = 30 * 60 * 1000
 const CACHE_INSPECTION_LIMIT = 50
+const TRANSLATION_PERSIST_FLUSH_DELAY_MS = 300
+const TRANSLATION_PERSIST_FLUSH_BATCH_SIZE = 20
 const CACHE_STATS_FLUSH_DELAY_MS = 1000
+const CACHE_STATS_BUCKET_MS = 60 * 1000
 
 type CacheRangeKey = "1H" | "12H" | "1D" | "7D" | "14D"
 type CacheAccessEventType = "exactL1Hit" | "exactL2Hit" | "stableL1Hit" | "stableL2Hit" | "miss"
-type CacheAccessRecordInput = {
+type PendingTranslationWrite = {
   key: string
   createdAt: Date
-  eventType: CacheAccessEventType
+  translation: string
+}
+type CacheStatsBucketInput = {
+  key: string
+  bucketStart: Date
+  exactL1Hits: number
+  exactL2Hits: number
+  stableL1Hits: number
+  stableL2Hits: number
+  misses: number
 }
 
 const exactTranslationMemoryCache = new LruTtlCache<string, string>(
@@ -45,8 +57,13 @@ const stableTranslationMemoryCache = new LruTtlCache<string, string>(
   TRANSLATION_MEMORY_CACHE_TTL_MS,
 )
 
-const cacheStatsEventBuffer: CacheAccessRecordInput[] = []
+const pendingExactTranslationWrites = new Map<string, PendingTranslationWrite>()
+const pendingStableTranslationWrites = new Map<string, PendingTranslationWrite>()
+const pendingCacheStatsBuckets = new Map<string, CacheStatsBucketInput>()
+let translationPersistFlushTimer: ReturnType<typeof setTimeout> | null = null
+let translationPersistFlushPromise: Promise<void> | null = null
 let cacheStatsFlushTimer: ReturnType<typeof setTimeout> | null = null
+let cacheStatsFlushPromise: Promise<void> | null = null
 
 export function parseBatchResult(result: string): string[] {
   return result.split(BATCH_SEPARATOR).map(t => t.trim())
@@ -69,14 +86,115 @@ function createTranslationResult(
   }
 }
 
-function enqueueCacheAccessEvent(eventType: CacheAccessEventType) {
-  cacheStatsEventBuffer.push({
-    key: crypto.randomUUID(),
-    createdAt: new Date(),
-    eventType,
-  })
+function createEmptyCacheStatsBucket(bucketStart: Date): CacheStatsBucketInput {
+  return {
+    key: String(bucketStart.getTime()),
+    bucketStart,
+    exactL1Hits: 0,
+    exactL2Hits: 0,
+    stableL1Hits: 0,
+    stableL2Hits: 0,
+    misses: 0,
+  }
+}
 
-  if (cacheStatsEventBuffer.length >= 20) {
+function mergeCacheStatsBucket(target: CacheStatsBucketInput, source: CacheStatsBucketInput) {
+  target.exactL1Hits += source.exactL1Hits
+  target.exactL2Hits += source.exactL2Hits
+  target.stableL1Hits += source.stableL1Hits
+  target.stableL2Hits += source.stableL2Hits
+  target.misses += source.misses
+}
+
+function getCacheStatsBucketStart(timestamp: number = Date.now()): Date {
+  return new Date(Math.floor(timestamp / CACHE_STATS_BUCKET_MS) * CACHE_STATS_BUCKET_MS)
+}
+
+function scheduleTranslationPersistFlush() {
+  if (pendingExactTranslationWrites.size + pendingStableTranslationWrites.size >= TRANSLATION_PERSIST_FLUSH_BATCH_SIZE) {
+    void flushPendingTranslationWrites()
+    return
+  }
+
+  if (!translationPersistFlushTimer) {
+    translationPersistFlushTimer = setTimeout(() => {
+      translationPersistFlushTimer = null
+      void flushPendingTranslationWrites()
+    }, TRANSLATION_PERSIST_FLUSH_DELAY_MS)
+  }
+}
+
+async function flushPendingTranslationWrites(): Promise<void> {
+  if (translationPersistFlushTimer) {
+    clearTimeout(translationPersistFlushTimer)
+    translationPersistFlushTimer = null
+  }
+
+  if (translationPersistFlushPromise) {
+    await translationPersistFlushPromise
+  }
+
+  if (pendingExactTranslationWrites.size === 0 && pendingStableTranslationWrites.size === 0) {
+    return
+  }
+
+  const exactEntries = Array.from(pendingExactTranslationWrites.values())
+  const stableEntries = Array.from(pendingStableTranslationWrites.values())
+  pendingExactTranslationWrites.clear()
+  pendingStableTranslationWrites.clear()
+
+  translationPersistFlushPromise = (async () => {
+    try {
+      await Promise.all([
+        exactEntries.length > 0 ? db.translationCache.bulkPut(exactEntries) : Promise.resolve(),
+        stableEntries.length > 0 ? db.stableTranslationCache.bulkPut(stableEntries) : Promise.resolve(),
+      ])
+    }
+    catch (error) {
+      for (const entry of exactEntries) {
+        pendingExactTranslationWrites.set(entry.key, entry)
+      }
+      for (const entry of stableEntries) {
+        pendingStableTranslationWrites.set(entry.key, entry)
+      }
+      logger.warn("Failed to flush pending translation cache writes:", error)
+    }
+    finally {
+      translationPersistFlushPromise = null
+      if (pendingExactTranslationWrites.size > 0 || pendingStableTranslationWrites.size > 0) {
+        scheduleTranslationPersistFlush()
+      }
+    }
+  })()
+
+  await translationPersistFlushPromise
+}
+
+function enqueueCacheAccessEvent(eventType: CacheAccessEventType) {
+  const bucketStart = getCacheStatsBucketStart()
+  const bucketKey = String(bucketStart.getTime())
+  const bucket = pendingCacheStatsBuckets.get(bucketKey) ?? createEmptyCacheStatsBucket(bucketStart)
+  pendingCacheStatsBuckets.set(bucketKey, bucket)
+
+  switch (eventType) {
+    case "exactL1Hit":
+      bucket.exactL1Hits++
+      break
+    case "exactL2Hit":
+      bucket.exactL2Hits++
+      break
+    case "stableL1Hit":
+      bucket.stableL1Hits++
+      break
+    case "stableL2Hit":
+      bucket.stableL2Hits++
+      break
+    case "miss":
+      bucket.misses++
+      break
+  }
+
+  if (pendingCacheStatsBuckets.size >= 4) {
     void flushCacheAccessEvents()
     return
   }
@@ -89,18 +207,73 @@ function enqueueCacheAccessEvent(eventType: CacheAccessEventType) {
   }
 }
 
-async function flushCacheAccessEvents() {
+async function flushCacheAccessEvents(): Promise<void> {
   if (cacheStatsFlushTimer) {
     clearTimeout(cacheStatsFlushTimer)
     cacheStatsFlushTimer = null
   }
 
-  if (cacheStatsEventBuffer.length === 0) {
+  if (cacheStatsFlushPromise) {
+    await cacheStatsFlushPromise
+  }
+
+  if (pendingCacheStatsBuckets.size === 0) {
     return
   }
 
-  const pendingEvents = cacheStatsEventBuffer.splice(0, cacheStatsEventBuffer.length)
-  await db.cacheAccessRecord.bulkPut(pendingEvents)
+  const pendingBuckets = Array.from(pendingCacheStatsBuckets.values())
+  pendingCacheStatsBuckets.clear()
+
+  cacheStatsFlushPromise = (async () => {
+    try {
+      const existingBuckets = await db.cacheAccessBucket.bulkGet(pendingBuckets.map(bucket => bucket.key))
+      const nextBuckets = pendingBuckets.map((bucket, index) => {
+        const existingBucket = existingBuckets[index]
+        if (!existingBucket) {
+          return bucket
+        }
+
+        const mergedBucket: CacheStatsBucketInput = {
+          key: existingBucket.key,
+          bucketStart: existingBucket.bucketStart,
+          exactL1Hits: existingBucket.exactL1Hits,
+          exactL2Hits: existingBucket.exactL2Hits,
+          stableL1Hits: existingBucket.stableL1Hits,
+          stableL2Hits: existingBucket.stableL2Hits,
+          misses: existingBucket.misses,
+        }
+        mergeCacheStatsBucket(mergedBucket, bucket)
+        return mergedBucket
+      })
+
+      await db.cacheAccessBucket.bulkPut(nextBuckets)
+    }
+    catch (error) {
+      for (const bucket of pendingBuckets) {
+        const existingBucket = pendingCacheStatsBuckets.get(bucket.key)
+        if (existingBucket) {
+          mergeCacheStatsBucket(existingBucket, bucket)
+        }
+        else {
+          pendingCacheStatsBuckets.set(bucket.key, bucket)
+        }
+      }
+      logger.warn("Failed to flush cache stats buckets:", error)
+    }
+    finally {
+      cacheStatsFlushPromise = null
+      if (pendingCacheStatsBuckets.size > 0) {
+        if (!cacheStatsFlushTimer) {
+          cacheStatsFlushTimer = setTimeout(() => {
+            cacheStatsFlushTimer = null
+            void flushCacheAccessEvents()
+          }, CACHE_STATS_FLUSH_DELAY_MS)
+        }
+      }
+    }
+  })()
+
+  await cacheStatsFlushPromise
 }
 
 function getRangeMeta(rangeKey: CacheRangeKey) {
@@ -177,7 +350,7 @@ async function getCachedStableTranslation(stableCacheKey?: string): Promise<Tran
   return createTranslationResult(persisted.translation, { layer: "l2", cacheType: "stable" })
 }
 
-async function persistTranslationResult(hash: string | undefined, stableCacheKey: string | undefined, translation: string): Promise<void> {
+function persistTranslationResult(hash: string | undefined, stableCacheKey: string | undefined, translation: string): void {
   if (!translation) {
     return
   }
@@ -186,32 +359,37 @@ async function persistTranslationResult(hash: string | undefined, stableCacheKey
   setStableTranslationCache(stableCacheKey, translation)
 
   const createdAt = new Date()
-  const writes: Array<Promise<unknown>> = []
-
   if (hash) {
-    writes.push(db.translationCache.put({
+    pendingExactTranslationWrites.set(hash, {
       key: hash,
       translation,
       createdAt,
-    }))
+    })
   }
 
   if (stableCacheKey) {
-    writes.push(db.stableTranslationCache.put({
+    pendingStableTranslationWrites.set(stableCacheKey, {
       key: stableCacheKey,
       translation,
       createdAt,
-    }))
+    })
   }
 
-  if (writes.length > 0) {
-    await Promise.all(writes)
+  if (hash || stableCacheKey) {
+    scheduleTranslationPersistFlush()
   }
 }
 
 export function clearTranslationMemoryCaches() {
   exactTranslationMemoryCache.clear()
   stableTranslationMemoryCache.clear()
+  pendingExactTranslationWrites.clear()
+  pendingStableTranslationWrites.clear()
+
+  if (translationPersistFlushTimer) {
+    clearTimeout(translationPersistFlushTimer)
+    translationPersistFlushTimer = null
+  }
 }
 
 function createEmptyStats() {
@@ -228,18 +406,31 @@ function createEmptyStats() {
 }
 
 async function getTranslationCacheOverview(rangeKey: CacheRangeKey): Promise<TranslationCacheOverview> {
-  await flushCacheAccessEvents()
+  await Promise.all([
+    flushPendingTranslationWrites(),
+    flushCacheAccessEvents(),
+  ])
   const range = getRangeMeta(rangeKey)
+  const bucketQueryStart = new Date(range.startAt - CACHE_STATS_BUCKET_MS)
 
-  const [l2ExactCount, l2StableCount, l2SummaryCount, records] = await Promise.all([
+  const [l2ExactCount, l2StableCount, l2SummaryCount, bucketRecords, legacyRecords] = await Promise.all([
     db.translationCache.count(),
     db.stableTranslationCache.count(),
     db.articleSummaryCache.count(),
+    db.cacheAccessBucket.where("bucketStart").between(bucketQueryStart, new Date(range.endAt), true, true).toArray(),
     db.cacheAccessRecord.where("createdAt").between(new Date(range.startAt), new Date(range.endAt), true, true).toArray(),
   ])
 
   const stats = createEmptyStats()
-  for (const record of records) {
+  for (const bucket of bucketRecords) {
+    stats.exactL1Hits += bucket.exactL1Hits
+    stats.exactL2Hits += bucket.exactL2Hits
+    stats.stableL1Hits += bucket.stableL1Hits
+    stats.stableL2Hits += bucket.stableL2Hits
+    stats.totalMisses += bucket.misses
+  }
+
+  for (const record of legacyRecords) {
     switch (record.eventType) {
       case "exactL1Hit":
         stats.exactL1Hits++
@@ -305,10 +496,12 @@ async function getTranslationCacheInspection(layer: "l1" | "l2", limit: number =
       limit,
       tables: [
         createL1TablePreview("l1-exact", "L1 Exact Translation Cache", exactTranslationMemoryCache, limit),
-        createL1TablePreview("l1-stable", "L1 Stable Short Text Cache", stableTranslationMemoryCache, limit),
+        createL1TablePreview("l1-stable", "L1 Shared Text Cache", stableTranslationMemoryCache, limit),
       ],
     }
   }
+
+  await flushPendingTranslationWrites()
 
   const [exactCount, stableCount, summaryCount, exactEntries, stableEntries, summaryEntries] = await Promise.all([
     db.translationCache.count(),
@@ -337,7 +530,7 @@ async function getTranslationCacheInspection(layer: "l1" | "l2", limit: number =
       },
       {
         id: "l2-stable",
-        title: "L2 Stable Short Text Cache",
+        title: "L2 Shared Text Cache",
         count: stableCount,
         limited: stableCount > limit,
         entries: stableEntries.map(entry => ({
@@ -543,7 +736,7 @@ export async function setUpWebPageTranslationQueue() {
     }
 
     // Cache the translation result if successful
-    await persistTranslationResult(hash, stableCacheKey, result)
+    persistTranslationResult(hash, stableCacheKey, result)
 
     return createTranslationResult(result)
   })
@@ -615,7 +808,7 @@ export async function setUpSubtitlesTranslationQueue() {
       result = await requestQueue.enqueue(thunk, scheduleAt, hash)
     }
 
-    await persistTranslationResult(hash, stableCacheKey, result)
+    persistTranslationResult(hash, stableCacheKey, result)
 
     return createTranslationResult(result)
   })

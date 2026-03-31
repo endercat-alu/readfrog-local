@@ -3,6 +3,7 @@ import { upperCamelCase } from "case-anything"
 import Dexie from "dexie"
 import { APP_NAME } from "@/utils/constants/app"
 import AiSegmentationCache from "./tables/ai-segmentation-cache"
+import CacheAccessBucket from "./tables/cache-access-bucket"
 import ArticleSummaryCache from "./tables/article-summary-cache"
 import BatchRequestRecord from "./tables/batch-request-record"
 import CacheAccessRecord from "./tables/cache-access-record"
@@ -26,6 +27,11 @@ export default class AppDB extends Dexie {
 
   cacheAccessRecord!: EntityTable<
     CacheAccessRecord,
+    "key"
+  >
+
+  cacheAccessBucket!: EntityTable<
+    CacheAccessBucket,
     "key"
   >
 
@@ -140,10 +146,40 @@ export default class AppDB extends Dexie {
         key,
         createdAt`,
     })
+    this.version(7).stores({
+      translationCache: `
+        key,
+        translation,
+        createdAt`,
+      stableTranslationCache: `
+        key,
+        translation,
+        createdAt`,
+      batchRequestRecord: `
+        key,
+        createdAt,
+        originalRequestCount,
+        provider,
+        model`,
+      cacheAccessRecord: `
+        key,
+        createdAt,
+        eventType`,
+      cacheAccessBucket: `
+        key,
+        bucketStart`,
+      articleSummaryCache: `
+        key,
+        createdAt`,
+      aiSegmentationCache: `
+        key,
+        createdAt`,
+    })
     this.translationCache.mapToClass(TranslationCache)
     this.stableTranslationCache.mapToClass(TranslationCache)
     this.batchRequestRecord.mapToClass(BatchRequestRecord)
     this.cacheAccessRecord.mapToClass(CacheAccessRecord)
+    this.cacheAccessBucket.mapToClass(CacheAccessBucket)
     this.articleSummaryCache.mapToClass(ArticleSummaryCache)
     this.aiSegmentationCache.mapToClass(AiSegmentationCache)
   }

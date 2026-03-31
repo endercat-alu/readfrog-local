@@ -715,10 +715,10 @@ options:
         viewport: Viewport Only
         document: Entire Document
     shortTextCache:
-      title: Stable Cache for Short Text
-      description: Cache clearly stable short text without page context to reduce repeated requests and disk reads
-      enable: Enable Stable Cache for Short Text
-      enableDescription: Enabled by default. Short text such as Download or Settings reuses the stable cache first, while longer or context-sensitive text still uses the original cache path.
+      title: Shared Text Cache
+      description: Reuse clearly stable or repeated text across contexts to reduce repeated requests and disk reads
+      enable: Enable Shared Text Cache
+      enableDescription: Enabled by default. Short text reuses the shared cache first, and repeated template text or boilerplate content on pages can also reuse it when the heuristic is confident.
   glossary:
     title: Glossary
     description: Define proper nouns, preferred translations, and descriptions. LLM translation injects matches into the prompt, while machine translation replaces matched terms before sending.

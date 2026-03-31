@@ -7,7 +7,7 @@ import { getProviderConfigById } from "@/utils/config/helpers"
 import { getLocalConfig } from "@/utils/config/storage"
 import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { Sha256Hex } from "@/utils/hash"
-import { buildHashComponents, buildStableShortTextCacheKey } from "@/utils/host/translate/translate-text"
+import { buildArticleContextFingerprint, buildHashComponents, buildStableShortTextCacheKey } from "@/utils/host/translate/translate-text"
 import { sendMessage } from "@/utils/message"
 
 function toFriendlyErrorMessage(error: unknown): string {
@@ -55,7 +55,7 @@ async function translateSingleSubtitle(
     { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
     enableAIContentAware,
     "document",
-    { title: videoContext.videoTitle, textContent: videoContext.subtitlesTextContent },
+    buildArticleContextFingerprint({ title: videoContext.videoTitle, textContent: videoContext.subtitlesTextContent }),
     preparedTranslation.glossaryPrompt,
   )
   const stableCacheKey = enableShortTextCache

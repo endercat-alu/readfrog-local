@@ -11,10 +11,13 @@ import { franc } from "franc"
 import { toast } from "sonner"
 import { isAPIProviderConfig, isLLMProviderConfig } from "@/types/config/provider"
 import { getProviderConfigById } from "@/utils/config/helpers"
+import { BLOCK_ATTRIBUTE, PARAGRAPH_ATTRIBUTE } from "@/utils/constants/dom-labels"
 import { detectLanguage } from "@/utils/content/language"
 import { cleanText, removeDummyNodes } from "@/utils/content/utils"
 import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
+import { isHTMLElement, isTextNode } from "@/utils/host/dom/filter"
 import { findNearestAncestorBlockNodeFor } from "@/utils/host/dom/find"
+import { extractTextContent } from "@/utils/host/dom/traversal"
 import { logger } from "@/utils/logger"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
 import { Sha256Hex } from "../../hash"
@@ -31,7 +34,14 @@ const VIEWPORT_CACHE_SCROLL_GRANULARITY = 240
 const SHORT_TEXT_CACHE_MAX_LENGTH = 32
 const SHORT_TEXT_CACHE_MAX_WORDS = 4
 const SHORT_TEXT_CACHE_MAX_SYMBOLS = 2
-const SHORT_TEXT_CACHE_VERSION_TAG = "shortTextCache:v1"
+const SHARED_TEXT_CACHE_VERSION_TAG = "sharedTextCache:v2"
+const LOCAL_CONTEXT_FINGERPRINT_VERSION_TAG = "localContext:v1"
+const ARTICLE_CONTEXT_FINGERPRINT_VERSION_TAG = "articleContext:v1"
+const SHARED_TEXT_CACHE_MAX_LENGTH = 280
+const SHARED_TEXT_CACHE_MAX_LINES = 4
+const SHARED_TEXT_CACHE_REPETITION_THRESHOLD = 2
+const LOCAL_CONTEXT_MAX_LENGTH = 1200
+const REPEATED_PAGE_TEXT_STATE_MAX_ENTRIES = 2000
 const META_CONTENT_SELECTORS = [
   "meta[property='og:title']",
   "meta[name='twitter:title']",
@@ -40,9 +50,66 @@ const META_CONTENT_SELECTORS = [
   "meta[name='twitter:description']",
   "meta[name='author']",
 ] as const
+const LOCAL_CONTEXT_TAGS = new Set([
+  "P",
+  "LI",
+  "TD",
+  "TH",
+  "DD",
+  "DT",
+  "BLOCKQUOTE",
+  "PRE",
+  "CODE",
+  "ARTICLE",
+  "SECTION",
+  "MAIN",
+  "ASIDE",
+  "HEADER",
+  "FOOTER",
+  "NAV",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+])
+const BOILERPLATE_CONTEXT_SELECTOR = [
+  "footer",
+  "nav",
+  "header",
+  "aside",
+  "[role='contentinfo']",
+  "[role='navigation']",
+  ".footer",
+  ".Footer",
+  ".pager",
+  ".Pager",
+  ".breadcrumb",
+  ".Breadcrumb",
+  ".copyright",
+  ".Copyright",
+  ".powered",
+  ".PoweredBy",
+  ".policy",
+  ".Policy",
+  ".terms",
+  ".Terms",
+].join(", ")
 // Minimum text length for skip language detection (shorter than general detection
 // to catch short phrases like "Bonjour!" or "こんにちは")
 export const MIN_LENGTH_FOR_SKIP_LLM_DETECTION = 10
+
+let repeatedPageTextState: {
+  url: string
+  counts: Map<string, number>
+} | null = null
+
+let localContextCacheState: {
+  url: string
+  textByElement: WeakMap<HTMLElement, string | null>
+  fingerprintByElement: WeakMap<HTMLElement, string | null>
+} | null = null
 
 /**
  * Check if text should be skipped based on language detection.
@@ -111,6 +178,54 @@ function normalizeContextText(text: string, maxLength: number): string {
   return cleanText(text, maxLength)
 }
 
+function getLocalContextCacheState() {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  if (!localContextCacheState || localContextCacheState.url !== window.location.href) {
+    localContextCacheState = {
+      url: window.location.href,
+      textByElement: new WeakMap(),
+      fingerprintByElement: new WeakMap(),
+    }
+  }
+
+  return localContextCacheState
+}
+
+function getCachedLocalContextText(container: HTMLElement, config: Config): string | undefined {
+  const cacheState = getLocalContextCacheState()
+  const cachedText = cacheState?.textByElement.get(container)
+  if (cachedText !== undefined) {
+    return cachedText ?? undefined
+  }
+
+  const nextText = normalizeContextText(extractTextContent(container, config), LOCAL_CONTEXT_MAX_LENGTH)
+  cacheState?.textByElement.set(container, nextText || null)
+  return nextText || undefined
+}
+
+function getCachedLocalContextFingerprint(container: HTMLElement, config: Config): string | undefined {
+  const cacheState = getLocalContextCacheState()
+  const cachedFingerprint = cacheState?.fingerprintByElement.get(container)
+  if (cachedFingerprint !== undefined) {
+    return cachedFingerprint ?? undefined
+  }
+
+  const contextText = getCachedLocalContextText(container, config)
+  const nextFingerprint = contextText
+    ? Sha256Hex(
+        LOCAL_CONTEXT_FINGERPRINT_VERSION_TAG,
+        container.tagName,
+        contextText,
+      )
+    : undefined
+
+  cacheState?.fingerprintByElement.set(container, nextFingerprint ?? null)
+  return nextFingerprint
+}
+
 function countShortTextCacheWords(text: string): number {
   const words = text.split(/\s+/u).filter(Boolean)
   if (words.length > 0) {
@@ -149,6 +264,167 @@ export function isShortTextCacheCandidate(text: string): boolean {
   }
 
   return /[\p{L}\p{N}]/u.test(normalizedText)
+}
+
+function isSharedTextCacheCandidate(text: string): boolean {
+  const normalizedText = cleanText(text, SHARED_TEXT_CACHE_MAX_LENGTH + 1)
+  if (!normalizedText || normalizedText.length > SHARED_TEXT_CACHE_MAX_LENGTH) {
+    return false
+  }
+
+  const lines = normalizedText.split(/\n+/u).filter(Boolean)
+  if (lines.length > SHARED_TEXT_CACHE_MAX_LINES) {
+    return false
+  }
+
+  if (/%\w|%\d|\$\{|\{\{|\}\}|<[^>]+>/u.test(normalizedText)) {
+    return false
+  }
+
+  if (/^[\d\W_]+$/u.test(normalizedText)) {
+    return false
+  }
+
+  return /[\p{L}\p{N}]/u.test(normalizedText)
+}
+
+function getRepeatedPageTextCount(text: string): number {
+  if (typeof window === "undefined") {
+    return 0
+  }
+
+  const normalizedText = cleanText(text, SHARED_TEXT_CACHE_MAX_LENGTH)
+  if (!normalizedText) {
+    return 0
+  }
+
+  if (!repeatedPageTextState || repeatedPageTextState.url !== window.location.href) {
+    repeatedPageTextState = {
+      url: window.location.href,
+      counts: new Map(),
+    }
+  }
+
+  if (
+    !repeatedPageTextState.counts.has(normalizedText)
+    && repeatedPageTextState.counts.size >= REPEATED_PAGE_TEXT_STATE_MAX_ENTRIES
+  ) {
+    const oldestKey = repeatedPageTextState.counts.keys().next().value
+    if (oldestKey) {
+      repeatedPageTextState.counts.delete(oldestKey)
+    }
+  }
+
+  const nextCount = (repeatedPageTextState.counts.get(normalizedText) ?? 0) + 1
+  repeatedPageTextState.counts.set(normalizedText, nextCount)
+  return nextCount
+}
+
+function getElementFromNode(node: ChildNode): HTMLElement | null {
+  if (isHTMLElement(node)) {
+    return node
+  }
+
+  if (isTextNode(node)) {
+    return node.parentElement
+  }
+
+  return null
+}
+
+function findCommonAncestorElement(elements: HTMLElement[]): HTMLElement | null {
+  const [first, ...rest] = elements
+  if (!first) {
+    return null
+  }
+
+  let candidate: HTMLElement | null = first
+  while (candidate) {
+    const currentCandidate = candidate
+    if (rest.every(element => currentCandidate === element || currentCandidate.contains(element))) {
+      return candidate
+    }
+    candidate = candidate.parentElement
+  }
+
+  return null
+}
+
+function resolveLocalContextElement(nodes: ChildNode[], config: Config): HTMLElement | null {
+  if (typeof document === "undefined") {
+    return null
+  }
+
+  const elements = nodes
+    .map(getElementFromNode)
+    .filter((element): element is HTMLElement => !!element)
+
+  const commonAncestor = findCommonAncestorElement(elements)
+  if (!commonAncestor) {
+    return null
+  }
+
+  let fallback: HTMLElement | null = null
+  let current: HTMLElement | null = commonAncestor
+
+  while (current && current !== document.body && current !== document.documentElement) {
+    const normalizedText = getCachedLocalContextText(current, config)
+    if (normalizedText) {
+      fallback ??= current
+    }
+
+    if (current.hasAttribute(PARAGRAPH_ATTRIBUTE)) {
+      return current
+    }
+
+    if (current.hasAttribute(BLOCK_ATTRIBUTE) || LOCAL_CONTEXT_TAGS.has(current.tagName)) {
+      return current
+    }
+
+    current = current.parentElement
+  }
+
+  return fallback
+}
+
+function isBoilerplateContextElement(element?: HTMLElement): boolean {
+  if (!element) {
+    return false
+  }
+
+  return element.matches(BOILERPLATE_CONTEXT_SELECTOR) || !!element.closest(BOILERPLATE_CONTEXT_SELECTOR)
+}
+
+export function buildArticleContextFingerprint(articleContext?: { title?: string, textContent?: string }): string | undefined {
+  if (!articleContext?.title && !articleContext?.textContent) {
+    return undefined
+  }
+
+  return Sha256Hex(
+    ARTICLE_CONTEXT_FINGERPRINT_VERSION_TAG,
+    articleContext?.title ?? "",
+    articleContext?.textContent?.slice(0, 1000) ?? "",
+  )
+}
+
+export function buildLocalContextFingerprint(
+  nodes: ChildNode[],
+  config: Config,
+): { fingerprint?: string, container?: HTMLElement } {
+  const container = resolveLocalContextElement(nodes, config)
+  if (!container) {
+    return {}
+  }
+
+  const fingerprint = getCachedLocalContextFingerprint(container, config)
+  if (!fingerprint) {
+    return { container }
+  }
+
+  return {
+    container,
+    fingerprint,
+  }
 }
 
 function collectMetaContextParts(title: string): string[] {
@@ -324,7 +600,7 @@ export async function buildHashComponents(
   partialLangConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393 },
   enableAIContentAware: boolean,
   aiContentAwareMode: AIContentAwareMode = "document",
-  articleContext?: { title?: string, textContent?: string },
+  exactCacheContextFingerprint?: string,
   glossaryPrompt?: string,
 ): Promise<string[]> {
   const hashComponents = [
@@ -342,35 +618,27 @@ export async function buildHashComponents(
     hashComponents.push(enableAIContentAware ? "enableAIContentAware=true" : "enableAIContentAware=false")
     hashComponents.push(`aiContentAwareMode:${aiContentAwareMode}`)
 
-    // Include article context in hash when AI Content Aware is enabled
-    // to ensure when we get different content from the same url, we get different cache entries
-    if (enableAIContentAware && articleContext) {
-      if (articleContext.title) {
-        hashComponents.push(`title:${articleContext.title}`)
-      }
-      if (articleContext.textContent) {
-        // Use a substring hash to avoid huge hash inputs while still differentiating articles
-        hashComponents.push(`content:${articleContext.textContent.slice(0, 1000)}`)
-      }
+    if (exactCacheContextFingerprint) {
+      hashComponents.push(`context:${exactCacheContextFingerprint}`)
     }
   }
 
   return hashComponents
 }
 
-export async function buildStableShortTextCacheKey(
+export async function buildSharedTextCacheKey(
   text: string,
   providerConfig: ProviderConfig,
   partialLangConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393 },
   glossaryPrompt?: string,
   extraHashTags: string[] = [],
 ): Promise<string | undefined> {
-  if (!isShortTextCacheCandidate(text)) {
+  if (!isSharedTextCacheCandidate(text)) {
     return undefined
   }
 
   const hashComponents = [
-    SHORT_TEXT_CACHE_VERSION_TAG,
+    SHARED_TEXT_CACHE_VERSION_TAG,
     cleanText(text),
     JSON.stringify(providerConfig),
     partialLangConfig.sourceCode,
@@ -388,6 +656,71 @@ export async function buildStableShortTextCacheKey(
   return Sha256Hex(...hashComponents)
 }
 
+export async function buildStableShortTextCacheKey(
+  text: string,
+  providerConfig: ProviderConfig,
+  partialLangConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393 },
+  glossaryPrompt?: string,
+  extraHashTags: string[] = [],
+): Promise<string | undefined> {
+  if (!isShortTextCacheCandidate(text)) {
+    return undefined
+  }
+
+  return await buildSharedTextCacheKey(
+    text,
+    providerConfig,
+    partialLangConfig,
+    glossaryPrompt,
+    extraHashTags,
+  )
+}
+
+export async function buildPageSharedTextCacheKey(
+  text: string,
+  nodes: ChildNode[],
+  config: Config,
+  providerConfig: ProviderConfig,
+  partialLangConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393 },
+  glossaryPrompt?: string,
+  extraHashTags: string[] = [],
+): Promise<string | undefined> {
+  if (!config.translate.enableShortTextCache) {
+    return undefined
+  }
+
+  if (isShortTextCacheCandidate(text)) {
+    return await buildSharedTextCacheKey(
+      text,
+      providerConfig,
+      partialLangConfig,
+      glossaryPrompt,
+      extraHashTags,
+    )
+  }
+
+  if (!isSharedTextCacheCandidate(text)) {
+    return undefined
+  }
+
+  const { container } = buildLocalContextFingerprint(nodes, config)
+  const repeatedCount = getRepeatedPageTextCount(text)
+  const canShareAcrossContexts = isBoilerplateContextElement(container)
+    || repeatedCount >= SHARED_TEXT_CACHE_REPETITION_THRESHOLD
+
+  if (!canShareAcrossContexts) {
+    return undefined
+  }
+
+  return await buildSharedTextCacheKey(
+    text,
+    providerConfig,
+    partialLangConfig,
+    glossaryPrompt,
+    extraHashTags,
+  )
+}
+
 export interface TranslateTextOptions {
   text: string
   langConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393, level: LangLevel }
@@ -397,6 +730,8 @@ export interface TranslateTextOptions {
   enableAIContentAware?: boolean
   aiContentAwareMode?: AIContentAwareMode
   extraHashTags?: string[]
+  exactCacheContextFingerprint?: string
+  sharedCacheKey?: string
 }
 
 /**
@@ -413,6 +748,8 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
     enableAIContentAware = false,
     aiContentAwareMode = "viewport",
     extraHashTags = [],
+    exactCacheContextFingerprint,
+    sharedCacheKey,
   } = options
 
   const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, glossaryEntries)
@@ -445,7 +782,7 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
     { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
     enableAIContentAware,
     aiContentAwareMode,
-    { title: articleTitle, textContent: articleTextContent },
+    exactCacheContextFingerprint ?? buildArticleContextFingerprint({ title: articleTitle, textContent: articleTextContent }),
     preparedTranslation.glossaryPrompt,
   )
 
@@ -454,7 +791,7 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
 
   const stableCacheKey = !enableShortTextCache
     ? undefined
-    : await buildStableShortTextCacheKey(
+    : sharedCacheKey ?? await buildStableShortTextCacheKey(
         requestText,
         providerConfig,
         { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
