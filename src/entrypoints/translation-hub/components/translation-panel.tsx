@@ -1,6 +1,6 @@
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import { useAtomValue, useSetAtom } from "jotai"
+import { Icon } from "@/components/icon"
 import {
   Empty,
   EmptyDescription,

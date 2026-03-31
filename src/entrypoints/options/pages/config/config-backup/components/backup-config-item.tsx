@@ -1,10 +1,10 @@
 import type { ConfigBackup, ConfigBackupMetadata } from "@/types/backup"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react/dist/iconify.js"
 import { useMutation } from "@tanstack/react-query"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useState } from "react"
 import { toast } from "sonner"
+import { Icon } from "@/components/icon"
 import {
   AlertDialog,
   AlertDialogAction,

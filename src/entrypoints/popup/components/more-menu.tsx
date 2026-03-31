@@ -1,5 +1,5 @@
 import { browser, i18n } from "#imports"
-import { Icon } from "@iconify/react"
+import { Icon } from "@/components/icon"
 import {
   DropdownMenu,
   DropdownMenuContent,

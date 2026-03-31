@@ -1,7 +1,7 @@
 import { browser, i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import * as React from "react"
 import frogIcon from "@/assets/icons/read-frog.png?url&no-inline"
+import { Icon } from "@/components/icon"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/base-ui/alert"
 import { Button } from "@/components/ui/base-ui/button"
 import {

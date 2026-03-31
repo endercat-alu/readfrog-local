@@ -1,5 +1,5 @@
 import { browser, i18n } from "#imports"
-import { Icon } from "@iconify/react"
+import { Icon } from "@/components/icon"
 import { version } from "../../../package.json"
 import { AISmartContext } from "./components/ai-smart-context"
 import { AlwaysTranslate } from "./components/always-translate"

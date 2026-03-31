@@ -1,7 +1,7 @@
 import type { SelectionToolbarCustomFeature } from "@/types/config/selection-toolbar"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import { useStore } from "@tanstack/react-form"
+import { Icon } from "@/components/icon"
 import { Field, FieldLabel } from "@/components/ui/base-ui/field"
 import { Input } from "@/components/ui/base-ui/input"
 import { ICON_PATTERN } from "@/utils/constants/custom-feature"

@@ -3,13 +3,13 @@ import type {
   SelectionToolbarCustomFeatureOutputField,
 } from "@/types/config/selection-toolbar"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import { useForm } from "@tanstack/react-form"
 import { useEffect, useState } from "react"
 import { fieldContext as FieldContext } from "@/components/form/form-context"
 import { InputField } from "@/components/form/input-field"
 import { QuickInsertableTextareaField } from "@/components/form/quick-insertable-textarea-field"
 import { SelectField } from "@/components/form/select-field"
+import { Icon } from "@/components/icon"
 import {
   AlertDialog,
   AlertDialogAction,

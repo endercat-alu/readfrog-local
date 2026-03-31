@@ -1,6 +1,6 @@
 import type { CustomFeatureTemplate } from "@/utils/constants/custom-feature-templates"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
+import { Icon } from "@/components/icon"
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/base-ui/dialog"
 import { CUSTOM_FEATURE_TEMPLATES } from "@/utils/constants/custom-feature-templates"
 

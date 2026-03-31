@@ -1,12 +1,12 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import {
   LANG_CODE_TO_EN_NAME,
   LANG_CODE_TO_LOCALE_NAME,
   langCodeISO6393Schema,
 } from "@read-frog/definitions"
 import { useAtom, useAtomValue } from "jotai"
+import { Icon } from "@/components/icon"
 import {
   Select,
   SelectContent,

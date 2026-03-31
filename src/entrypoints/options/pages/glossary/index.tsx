@@ -1,7 +1,7 @@
 import type { GlossaryEntry } from "@/types/config/glossary"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import { useAtom } from "jotai"
+import { Icon } from "@/components/icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Checkbox } from "@/components/ui/base-ui/checkbox"
 import { Input } from "@/components/ui/base-ui/input"

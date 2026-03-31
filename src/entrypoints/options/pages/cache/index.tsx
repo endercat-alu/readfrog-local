@@ -1,9 +1,8 @@
 import type { TranslationCacheInspection } from "@/types/cache-inspector"
 import { i18n } from "#imports"
-import { Icon } from "@iconify/react"
 import { useQuery } from "@tanstack/react-query"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/base-ui/tabs"
 import { useState } from "react"
+import { Icon } from "@/components/icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Card, CardContent } from "@/components/ui/base-ui/card"
 import {
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/base-ui/dialog"
 import { Input } from "@/components/ui/base-ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/base-ui/table"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/base-ui/tabs"
 import { sendMessage } from "@/utils/message"
 import { addThousandsSeparator } from "@/utils/utils"
 import { PageLayout } from "../../components/page-layout"
@@ -97,7 +97,7 @@ export function CachePage() {
         tables: inspection.tables.map(table => ({
           ...table,
           entries: normalizedSearchQuery
-            ? table.entries.filter(entry => {
+            ? table.entries.filter((entry) => {
                 const key = entry.key.toLowerCase()
                 const value = entry.value.toLowerCase()
                 return key.includes(normalizedSearchQuery) || value.includes(normalizedSearchQuery)

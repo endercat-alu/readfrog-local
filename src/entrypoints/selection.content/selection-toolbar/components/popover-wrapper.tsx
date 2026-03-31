@@ -1,7 +1,7 @@
-import { Icon } from "@iconify/react"
 import { IconGripHorizontal, IconX } from "@tabler/icons-react"
 import { useAtomValue } from "jotai"
 import { useCallback, useEffect, useImperativeHandle, useRef } from "react"
+import { Icon } from "@/components/icon"
 import { NOTRANSLATE_CLASS } from "@/utils/constants/dom-labels"
 import { MARGIN } from "@/utils/constants/selection"
 import { mouseClickPositionAtom, selectionContentAtom } from "../atom"
