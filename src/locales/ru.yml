@@ -30,6 +30,7 @@ popup:
     notification: Что нового в Read Frog
   aiSmartContext: Умный контекст ИИ
   aiSmartContextDescription: Использует контекст веб-страницы для улучшения качества перевода. Требуется LLM-провайдер перевода.
+  cacheHitHighlight: Подсвечивать попадания в кэш
   more:
     title: Ещё
     translationHub: Центр переводов

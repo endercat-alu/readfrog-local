@@ -13,6 +13,7 @@ import { PersonalizedPrompts } from "./personalized-prompt"
 import { PreloadConfig } from "./preload-config"
 import { RequestBatch } from "./request-batch"
 import { RequestRate } from "./request-rate"
+import { ShortTextCache } from "./short-text-cache"
 import { SkipLanguages } from "./skip-languages"
 import { SmallParagraphFilter } from "./small-paragraph-filter"
 import { TranslateRange } from "./translate-range"
@@ -27,6 +28,7 @@ export function TranslationPage() {
       <NodeTranslationHotkey />
       <ParagraphSegmentation />
       <CustomTranslationStyle />
+      <ShortTextCache />
       <AIContentAware />
       <PersonalizedPrompts />
       <AutoTranslateWebsitePatterns />

@@ -27,6 +27,7 @@ import { bindTranslationShortcutKey } from "./translation-control/bind-translati
 import { handleTranslationModeChange } from "./translation-control/handle-config-change"
 import { registerNodeTranslationTriggers } from "./translation-control/node-translation"
 import { PageTranslationManager } from "./translation-control/page-translation"
+import { setCacheHitDebugEnabled } from "@/utils/host/translate/cache-hit-debug"
 import "@/utils/crypto-polyfill"
 import "./listen"
 import "./style.css"
@@ -128,6 +129,15 @@ export default defineContentScript({
       void manager.start()
     }
 
+    let cacheHighlightEnabled = false
+    try {
+      cacheHighlightEnabled = await sendMessage("getCacheHighlightStateFromContentScript", undefined)
+    }
+    catch (error) {
+      logger.error("Failed to check cache highlight state:", error)
+    }
+    setCacheHitDebugEnabled(cacheHighlightEnabled)
+
     let latestConfig: Config = initialConfig ?? DEFAULT_CONFIG
     let pendingUrlChangeTimer: number | null = null
     let urlChangeVersion = 0
@@ -203,6 +213,10 @@ export default defineContentScript({
       if (enabled === manager.isActive)
         return
       enabled ? void manager.start() : manager.stop()
+    })
+
+    onMessage("notifyCacheHighlightStateChanged", (msg) => {
+      setCacheHitDebugEnabled(msg.data.enabled)
     })
 
     // Only the top frame should detect and set language to avoid race conditions from iframes

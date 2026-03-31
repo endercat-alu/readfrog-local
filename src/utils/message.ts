@@ -13,6 +13,8 @@ import type {
 } from "@/types/edge-tts"
 import type { ProxyRequest, ProxyResponse } from "@/types/proxy-fetch"
 import type { PureAPIProviderConfig } from "@/types/config/provider"
+import type { TranslationCacheInspection, TranslationCacheOverview } from "@/types/cache-inspector"
+import type { TranslationResult } from "@/types/translation-cache"
 import type {
   TTSOffscreenStopRequest,
   TTSPlaybackStartRequest,
@@ -33,9 +35,14 @@ interface ProtocolMap {
   getEnablePageTranslationFromContentScript: () => Promise<boolean>
   tryToSetEnablePageTranslationByTabId: (data: { tabId: number, enabled: boolean }) => void
   tryToSetEnablePageTranslationOnContentScript: (data: { enabled: boolean }) => void
+  getCacheHighlightStateByTabId: (data: { tabId: number }) => boolean | undefined
+  getCacheHighlightStateFromContentScript: () => Promise<boolean>
+  tryToSetCacheHighlightStateByTabId: (data: { tabId: number, enabled: boolean }) => void
+  tryToSetCacheHighlightStateOnContentScript: (data: { enabled: boolean }) => void
   openSelectionToolbarFeatureFromContextMenu: (data: { feature: "translate" | "vocabularyInsight" | "dictionary" }) => void
   setAndNotifyPageTranslationStateChangedByManager: (data: { enabled: boolean }) => void
   notifyTranslationStateChanged: (data: { enabled: boolean }) => void
+  notifyCacheHighlightStateChanged: (data: { enabled: boolean }) => void
   // for auto start page translation
   checkAndAskAutoPageTranslation: (data: { url: string, detectedCodeOrUnd: LangCodeISO6393 | "und" }) => void
   // ask host to start page translation
@@ -45,8 +52,8 @@ interface ProtocolMap {
   getPinState: () => boolean
   returnPinState: (data: { isPinned: boolean }) => void
   // request
-  enqueueTranslateRequest: (data: { text: string, glossaryPrompt?: string, langConfig: Config["language"], providerConfig: ProviderConfig, scheduleAt: number, hash: string, articleTitle?: string, articleTextContent?: string }) => Promise<string>
-  enqueueSubtitlesTranslateRequest: (data: { text: string, glossaryPrompt?: string, langConfig: Config["language"], providerConfig: ProviderConfig, scheduleAt: number, hash: string, videoTitle?: string, subtitlesContext?: string }) => Promise<string>
+  enqueueTranslateRequest: (data: { text: string, glossaryPrompt?: string, langConfig: Config["language"], providerConfig: ProviderConfig, scheduleAt: number, hash: string, stableCacheKey?: string, articleTitle?: string, articleTextContent?: string }) => Promise<TranslationResult>
+  enqueueSubtitlesTranslateRequest: (data: { text: string, glossaryPrompt?: string, langConfig: Config["language"], providerConfig: ProviderConfig, scheduleAt: number, hash: string, stableCacheKey?: string, videoTitle?: string, subtitlesContext?: string }) => Promise<TranslationResult>
   backgroundGenerateText: (data: BackgroundGenerateTextPayload) => Promise<BackgroundGenerateTextResponse>
   // AI subtitle segmentation
   aiSegmentSubtitles: (data: { jsonContent: string, providerId: string }) => Promise<string>
@@ -69,6 +76,8 @@ interface ProtocolMap {
   // cache management
   clearAllTranslationRelatedCache: () => Promise<void>
   clearAiSegmentationCache: () => Promise<void>
+  getTranslationCacheOverview: (data: { rangeKey: "1H" | "12H" | "1D" | "7D" | "14D" }) => Promise<TranslationCacheOverview>
+  inspectTranslationCacheLayer: (data: { layer: "l1" | "l2", limit?: number }) => Promise<TranslationCacheInspection>
   // edge tts
   edgeTtsSynthesize: (data: EdgeTTSSynthesizeRequest) => Promise<EdgeTTSSynthesizeWireResponse>
   edgeTtsListVoices: () => Promise<EdgeTTSVoice[]>

@@ -2,6 +2,7 @@ import type { LangCodeISO6393, LangLevel } from "@read-frog/definitions"
 import type { Config } from "@/types/config/config"
 import type { GlossaryEntry } from "@/types/config/glossary"
 import type { ProviderConfig } from "@/types/config/provider"
+import type { TranslationResult } from "@/types/translation-cache"
 import type { AIContentAwareMode } from "@/types/config/translate"
 import { i18n } from "#imports"
 import { Readability } from "@mozilla/readability"
@@ -27,6 +28,10 @@ const MAX_VIEWPORT_CONTEXT_LENGTH = 6000
 const MAX_VIEWPORT_NODE_TEXT_LENGTH = 600
 const MIN_VIEWPORT_NODE_TEXT_LENGTH = 40
 const VIEWPORT_CACHE_SCROLL_GRANULARITY = 240
+const SHORT_TEXT_CACHE_MAX_LENGTH = 32
+const SHORT_TEXT_CACHE_MAX_WORDS = 4
+const SHORT_TEXT_CACHE_MAX_SYMBOLS = 2
+const SHORT_TEXT_CACHE_VERSION_TAG = "shortTextCache:v1"
 const META_CONTENT_SELECTORS = [
   "meta[property='og:title']",
   "meta[name='twitter:title']",
@@ -104,6 +109,46 @@ function getCachedArticleData(mode: AIContentAwareMode): typeof cachedArticleDat
 
 function normalizeContextText(text: string, maxLength: number): string {
   return cleanText(text, maxLength)
+}
+
+function countShortTextCacheWords(text: string): number {
+  const words = text.split(/\s+/u).filter(Boolean)
+  if (words.length > 0) {
+    return words.length
+  }
+
+  return Array.from(text).length
+}
+
+export function isShortTextCacheCandidate(text: string): boolean {
+  const normalizedText = cleanText(text, SHORT_TEXT_CACHE_MAX_LENGTH + 1)
+  if (!normalizedText || normalizedText.length > SHORT_TEXT_CACHE_MAX_LENGTH) {
+    return false
+  }
+
+  if (/[\r\n\t]/u.test(text)) {
+    return false
+  }
+
+  if (/[<>{}[\]\\/@#%^*_+=|]/u.test(normalizedText)) {
+    return false
+  }
+
+  if (/%\w|%\d|\$\{|\{\{|\}\}|<[^>]+>/u.test(normalizedText)) {
+    return false
+  }
+
+  const words = countShortTextCacheWords(normalizedText)
+  if (words > SHORT_TEXT_CACHE_MAX_WORDS) {
+    return false
+  }
+
+  const symbolCount = (normalizedText.match(/[!?,.;:()[\]"'`~-]/gu) ?? []).length
+  if (symbolCount > SHORT_TEXT_CACHE_MAX_SYMBOLS) {
+    return false
+  }
+
+  return /[\p{L}\p{N}]/u.test(normalizedText)
 }
 
 function collectMetaContextParts(title: string): string[] {
@@ -313,11 +358,42 @@ export async function buildHashComponents(
   return hashComponents
 }
 
+export async function buildStableShortTextCacheKey(
+  text: string,
+  providerConfig: ProviderConfig,
+  partialLangConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393 },
+  glossaryPrompt?: string,
+  extraHashTags: string[] = [],
+): Promise<string | undefined> {
+  if (!isShortTextCacheCandidate(text)) {
+    return undefined
+  }
+
+  const hashComponents = [
+    SHORT_TEXT_CACHE_VERSION_TAG,
+    cleanText(text),
+    JSON.stringify(providerConfig),
+    partialLangConfig.sourceCode,
+    partialLangConfig.targetCode,
+  ]
+
+  if (isLLMProviderConfig(providerConfig)) {
+    const targetLangName = LANG_CODE_TO_EN_NAME[partialLangConfig.targetCode]
+    const { systemPrompt, prompt } = await getTranslatePrompt(targetLangName, text, { isBatch: true, glossaryPrompt })
+    hashComponents.push(systemPrompt, prompt)
+  }
+
+  hashComponents.push(...extraHashTags)
+
+  return Sha256Hex(...hashComponents)
+}
+
 export interface TranslateTextOptions {
   text: string
   langConfig: { sourceCode: LangCodeISO6393 | "auto", targetCode: LangCodeISO6393, level: LangLevel }
   providerConfig: ProviderConfig
   glossaryEntries?: GlossaryEntry[]
+  enableShortTextCache?: boolean
   enableAIContentAware?: boolean
   aiContentAwareMode?: AIContentAwareMode
   extraHashTags?: string[]
@@ -327,12 +403,13 @@ export interface TranslateTextOptions {
  * Core translation function — pure, zero config fetching.
  * All dependencies must be provided explicitly.
  */
-export async function translateTextCore(options: TranslateTextOptions): Promise<string> {
+export async function translateTextCoreWithResult(options: TranslateTextOptions): Promise<TranslationResult> {
   const {
     text,
     langConfig,
     providerConfig,
     glossaryEntries = [],
+    enableShortTextCache = true,
     enableAIContentAware = false,
     aiContentAwareMode = "viewport",
     extraHashTags = [],
@@ -346,7 +423,7 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
     const detectedLang = franc(requestText)
     if (detectedLang === langConfig.targetCode) {
       logger.info(`translateTextCore: skipping translation because text is already in target language. text: ${requestText}`)
-      return ""
+      return { translation: "" }
     }
   }
 
@@ -375,6 +452,16 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
   // Add extra hash tags for cache differentiation
   hashComponents.push(...extraHashTags)
 
+  const stableCacheKey = !enableShortTextCache
+    ? undefined
+    : await buildStableShortTextCacheKey(
+        requestText,
+        providerConfig,
+        { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
+        preparedTranslation.glossaryPrompt,
+        extraHashTags,
+      )
+
   return await sendMessage("enqueueTranslateRequest", {
     text: requestText,
     glossaryPrompt: preparedTranslation.glossaryPrompt,
@@ -382,9 +469,15 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
     providerConfig,
     scheduleAt: Date.now(),
     hash: Sha256Hex(...hashComponents),
+    stableCacheKey,
     articleTitle,
     articleTextContent,
   })
+}
+
+export async function translateTextCore(options: TranslateTextOptions): Promise<string> {
+  const result = await translateTextCoreWithResult(options)
+  return result.translation
 }
 
 export function validateTranslationConfigAndToast(

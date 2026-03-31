@@ -30,6 +30,7 @@ popup:
     notification: Có gì mới trong Read Frog
   aiSmartContext: Ngữ cảnh thông minh AI
   aiSmartContextDescription: Sử dụng ngữ cảnh trang web để cải thiện chất lượng dịch. Yêu cầu nhà cung cấp dịch LLM.
+  cacheHitHighlight: Tô sáng mục trúng bộ nhớ đệm
   more:
     title: Thêm
     translationHub: Trung tâm Dịch thuật

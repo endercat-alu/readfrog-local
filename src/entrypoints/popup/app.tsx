@@ -3,6 +3,7 @@ import { Icon } from "@iconify/react"
 import { version } from "../../../package.json"
 import { AISmartContext } from "./components/ai-smart-context"
 import { AlwaysTranslate } from "./components/always-translate"
+import { CacheHitHighlight } from "./components/cache-hit-highlight"
 import LanguageOptionsSelector from "./components/language-options-selector"
 import { MoreMenu } from "./components/more-menu"
 import Hotkey from "./components/node-translation-hotkey-selector"
@@ -34,6 +35,7 @@ function App() {
         <AlwaysTranslate />
         <Hotkey />
         <AISmartContext />
+        <CacheHitHighlight />
       </div>
       <div className="flex items-center justify-between bg-neutral-200 px-2 py-1 dark:bg-neutral-800">
         <button

@@ -1,8 +1,9 @@
+import type { CacheHighlightState } from "@/types/cache-highlight-state"
 import type { Config } from "@/types/config/config"
 import type { TranslationState } from "@/types/translation-state"
 import { browser, storage } from "#imports"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
-import { getTranslationStateKey } from "@/utils/constants/storage-keys"
+import { getCacheHighlightStateKey, getTranslationStateKey } from "@/utils/constants/storage-keys"
 import { shouldEnableAutoTranslation } from "@/utils/host/translate/auto-translation"
 import { logger } from "@/utils/logger"
 import { onMessage, sendMessage } from "@/utils/message"
@@ -36,6 +37,36 @@ export function translationMessage() {
     }
     else {
       logger.error("tabId is not a number", msg)
+    }
+  })
+
+  onMessage("getCacheHighlightStateByTabId", async (msg) => {
+    const { tabId } = msg.data
+    return await getCacheHighlightState(tabId)
+  })
+
+  onMessage("getCacheHighlightStateFromContentScript", async (msg) => {
+    const tabId = msg.sender?.tab?.id
+    if (typeof tabId === "number") {
+      return await getCacheHighlightState(tabId)
+    }
+    logger.error("Invalid tabId in getCacheHighlightStateFromContentScript", msg)
+    return false
+  })
+
+  onMessage("tryToSetCacheHighlightStateByTabId", async (msg) => {
+    const { tabId, enabled } = msg.data
+    await setCacheHighlightState(tabId, enabled)
+  })
+
+  onMessage("tryToSetCacheHighlightStateOnContentScript", async (msg) => {
+    const tabId = msg.sender?.tab?.id
+    const { enabled } = msg.data
+    if (typeof tabId === "number") {
+      await setCacheHighlightState(tabId, enabled)
+    }
+    else {
+      logger.error("Invalid tabId in tryToSetCacheHighlightStateOnContentScript", msg)
     }
   })
 
@@ -76,8 +107,26 @@ export function translationMessage() {
     return state?.enabled ?? false
   }
 
+  async function getCacheHighlightState(tabId: number): Promise<boolean> {
+    const state = await storage.getItem<CacheHighlightState>(
+      getCacheHighlightStateKey(tabId),
+    )
+    return state?.enabled ?? false
+  }
+
+  async function setCacheHighlightState(tabId: number, enabled: boolean): Promise<void> {
+    await storage.setItem<CacheHighlightState>(
+      getCacheHighlightStateKey(tabId),
+      { enabled },
+    )
+    void sendMessage("notifyCacheHighlightStateChanged", { enabled }, tabId)
+  }
+
   // === Cleanup ===
   browser.tabs.onRemoved.addListener(async (tabId) => {
-    await storage.removeItem(getTranslationStateKey(tabId))
+    await Promise.all([
+      storage.removeItem(getTranslationStateKey(tabId)),
+      storage.removeItem(getCacheHighlightStateKey(tabId)),
+    ])
   })
 }

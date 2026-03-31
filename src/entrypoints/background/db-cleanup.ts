@@ -6,6 +6,7 @@ export const CHECK_INTERVAL_MINUTES = 24 * 60
 
 export const TRANSLATION_CACHE_CLEANUP_ALARM = "cache-cleanup"
 export const TRANSLATION_CACHE_MAX_AGE_MINUTES = 7 * 24 * 60
+export const CACHE_ACCESS_RECORD_MAX_AGE_DAYS = 30
 
 export const REQUEST_RECORD_CLEANUP_ALARM = "request-record-cleanup"
 export const REQUEST_RECORD_MAX_COUNT = 10000
@@ -44,6 +45,7 @@ export async function setUpDatabaseCleanup() {
   browser.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === TRANSLATION_CACHE_CLEANUP_ALARM) {
       await cleanupOldTranslationCache()
+      await cleanupOldCacheAccessRecords()
     }
     else if (alarm.name === REQUEST_RECORD_CLEANUP_ALARM) {
       await cleanupOldRequestRecords()
@@ -59,11 +61,17 @@ async function cleanupOldTranslationCache() {
     const cutoffDate = new Date()
     cutoffDate.setTime(cutoffDate.getTime() - TRANSLATION_CACHE_MAX_AGE_MINUTES * 60 * 1000)
 
-    // Delete all cache entries older than the cutoff date
-    const deletedCount = await db.translationCache
-      .where("createdAt")
-      .below(cutoffDate)
-      .delete()
+    const [deletedExactCount, deletedStableCount] = await Promise.all([
+      db.translationCache
+        .where("createdAt")
+        .below(cutoffDate)
+        .delete(),
+      db.stableTranslationCache
+        .where("createdAt")
+        .below(cutoffDate)
+        .delete(),
+    ])
+    const deletedCount = deletedExactCount + deletedStableCount
 
     if (deletedCount > 0) {
       logger.info(`Cache cleanup: Deleted ${deletedCount} old translation cache entries`)
@@ -74,10 +82,31 @@ async function cleanupOldTranslationCache() {
   }
 }
 
+async function cleanupOldCacheAccessRecords() {
+  try {
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - CACHE_ACCESS_RECORD_MAX_AGE_DAYS)
+
+    const deletedCount = await db.cacheAccessRecord
+      .where("createdAt")
+      .below(cutoffDate)
+      .delete()
+
+    if (deletedCount > 0) {
+      logger.info(`Cache access records cleanup: Deleted ${deletedCount} entries older than ${CACHE_ACCESS_RECORD_MAX_AGE_DAYS} days`)
+    }
+  }
+  catch (error) {
+    logger.error("Failed to cleanup old cache access records:", error)
+  }
+}
+
 export async function cleanupAllTranslationCache() {
   try {
-    // Delete all translation cache entries
-    await db.translationCache.clear()
+    await Promise.all([
+      db.translationCache.clear(),
+      db.stableTranslationCache.clear(),
+    ])
 
     logger.info(`Cache cleanup: Deleted all translation cache entries`)
   }

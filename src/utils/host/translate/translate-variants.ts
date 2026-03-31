@@ -1,11 +1,12 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { Config, InputTranslationLang } from "@/types/config/config"
+import type { TranslationResult } from "@/types/translation-cache"
 import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/languages"
 import { resolveProviderConfig } from "@/utils/constants/feature-providers"
 import { logger } from "@/utils/logger"
 import { getLocalConfig } from "../../config/storage"
 import { getPageTranslationRuntimeConfig } from "./runtime-config"
-import { MIN_LENGTH_FOR_SKIP_LLM_DETECTION, shouldSkipByLanguage, translateTextCore } from "./translate-text"
+import { MIN_LENGTH_FOR_SKIP_LLM_DETECTION, shouldSkipByLanguage, translateTextCore, translateTextCoreWithResult } from "./translate-text"
 
 async function getConfigOrThrow(): Promise<Config> {
   const runtimeConfig = getPageTranslationRuntimeConfig()
@@ -25,6 +26,11 @@ async function getConfigOrThrow(): Promise<Config> {
  * Includes skip-language logic (page translation only).
  */
 export async function translateTextForPage(text: string): Promise<string> {
+  const result = await translateTextForPageWithResult(text)
+  return result.translation
+}
+
+export async function translateTextForPageWithResult(text: string): Promise<TranslationResult> {
   const config = await getConfigOrThrow()
   const providerConfig = resolveProviderConfig(config, "translate")
 
@@ -39,15 +45,16 @@ export async function translateTextForPage(text: string): Promise<string> {
     )
     if (shouldSkip) {
       logger.info(`translateTextForPage: skipping translation because text is in skip language list. text: ${text}`)
-      return ""
+      return { translation: "" }
     }
   }
 
-  return translateTextCore({
+  return translateTextCoreWithResult({
     text,
     langConfig: config.language,
     providerConfig,
     glossaryEntries: config.glossary.entries,
+    enableShortTextCache: config.translate.enableShortTextCache,
     enableAIContentAware: config.translate.enableAIContentAware,
     aiContentAwareMode: config.translate.aiContentAwareMode,
   })
@@ -66,6 +73,7 @@ export async function translateTextForSelection(text: string): Promise<string> {
     extraHashTags: ["selectionTranslation"],
     providerConfig,
     glossaryEntries: config.glossary.entries,
+    enableShortTextCache: config.translate.enableShortTextCache,
     enableAIContentAware: config.translate.enableAIContentAware,
     aiContentAwareMode: config.translate.aiContentAwareMode,
   })
@@ -113,6 +121,7 @@ export async function translateTextForInput(
     extraHashTags: [`inputTranslation:${fromLang}->${toLang}`],
     providerConfig,
     glossaryEntries: config.glossary.entries,
+    enableShortTextCache: config.translate.enableShortTextCache,
     enableAIContentAware: config.translate.enableAIContentAware,
     aiContentAwareMode: config.translate.aiContentAwareMode,
   })

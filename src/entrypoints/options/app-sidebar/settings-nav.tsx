@@ -128,6 +128,13 @@ export function SettingsNav() {
           </SidebarMenuItem>
 
           <SidebarMenuItem>
+            <SidebarMenuButton render={<Link to="/cache" />} isActive={pathname === "/cache"}>
+              <Icon icon="tabler:database-search" />
+              <span>{i18n.t("options.cache.title")}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
             <SidebarMenuButton render={<Link to="/config" />} isActive={pathname === "/config"}>
               <Icon icon="tabler:settings" />
               <span>{i18n.t("options.config.title")}</span>

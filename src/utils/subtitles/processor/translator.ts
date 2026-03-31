@@ -7,7 +7,7 @@ import { getProviderConfigById } from "@/utils/config/helpers"
 import { getLocalConfig } from "@/utils/config/storage"
 import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { Sha256Hex } from "@/utils/hash"
-import { buildHashComponents } from "@/utils/host/translate/translate-text"
+import { buildHashComponents, buildStableShortTextCacheKey } from "@/utils/host/translate/translate-text"
 import { sendMessage } from "@/utils/message"
 
 function toFriendlyErrorMessage(error: unknown): string {
@@ -43,6 +43,7 @@ async function translateSingleSubtitle(
   text: string,
   langConfig: Config["language"],
   providerConfig: ProviderConfig,
+  enableShortTextCache: boolean,
   enableAIContentAware: boolean,
   videoContext: SubtitlesVideoContext,
   glossaryEntries: Config["glossary"]["entries"],
@@ -57,17 +58,28 @@ async function translateSingleSubtitle(
     { title: videoContext.videoTitle, textContent: videoContext.subtitlesTextContent },
     preparedTranslation.glossaryPrompt,
   )
+  const stableCacheKey = enableShortTextCache
+    ? await buildStableShortTextCacheKey(
+        preparedTranslation.text,
+        providerConfig,
+        { sourceCode: langConfig.sourceCode, targetCode: langConfig.targetCode },
+        preparedTranslation.glossaryPrompt,
+      )
+    : undefined
 
-  return await sendMessage("enqueueSubtitlesTranslateRequest", {
+  const result = await sendMessage("enqueueSubtitlesTranslateRequest", {
     text: preparedTranslation.text,
     glossaryPrompt: preparedTranslation.glossaryPrompt,
     langConfig,
     providerConfig,
     scheduleAt: Date.now(),
     hash: Sha256Hex(...hashComponents),
+    stableCacheKey,
     videoTitle: enableAIContentAware ? videoContext.videoTitle : "",
     subtitlesContext: enableAIContentAware ? videoContext.subtitlesTextContent : "",
   })
+
+  return result.translation
 }
 
 export async function translateSubtitles(
@@ -86,11 +98,12 @@ export async function translateSubtitles(
   }
 
   const langConfig = config.language
+  const enableShortTextCache = !!config.translate.enableShortTextCache
   const enableAIContentAware = !!config.translate.enableAIContentAware
   const glossaryEntries = config.glossary.entries
 
   const translationPromises = fragments.map(fragment =>
-    translateSingleSubtitle(fragment.text, langConfig, providerConfig, enableAIContentAware, videoContext, glossaryEntries),
+    translateSingleSubtitle(fragment.text, langConfig, providerConfig, enableShortTextCache, enableAIContentAware, videoContext, glossaryEntries),
   )
 
   const results = await Promise.allSettled(translationPromises)

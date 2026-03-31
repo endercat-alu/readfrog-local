@@ -56,6 +56,45 @@ describe("translate-text", () => {
         hash: expect.any(String),
       }))
     })
+
+    it("should attach stableCacheKey for eligible short text when enabled", async () => {
+      mockSendMessage.mockResolvedValue("translated text")
+
+      await translateTextForPage("Download")
+
+      expect(mockSendMessage).toHaveBeenCalledWith("enqueueTranslateRequest", expect.objectContaining({
+        text: "Download",
+        stableCacheKey: expect.any(String),
+      }))
+    })
+
+    it("should not attach stableCacheKey for long text", async () => {
+      mockSendMessage.mockResolvedValue("translated text")
+
+      await translateTextForPage("This is a much longer paragraph-like sentence that should not use the short text stable cache.")
+
+      expect(mockSendMessage).toHaveBeenCalledWith("enqueueTranslateRequest", expect.objectContaining({
+        stableCacheKey: undefined,
+      }))
+    })
+
+    it("should not attach stableCacheKey when disabled by config", async () => {
+      mockSendMessage.mockResolvedValue("translated text")
+      mockGetConfigFromStorage.mockResolvedValue({
+        ...DEFAULT_CONFIG,
+        translate: {
+          ...DEFAULT_CONFIG.translate,
+          enableShortTextCache: false,
+        },
+      })
+
+      await translateTextForPage("Download")
+
+      expect(mockSendMessage).toHaveBeenCalledWith("enqueueTranslateRequest", expect.objectContaining({
+        text: "Download",
+        stableCacheKey: undefined,
+      }))
+    })
   })
 
   describe("executeTranslate", () => {

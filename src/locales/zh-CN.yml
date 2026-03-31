@@ -35,6 +35,7 @@ popup:
     notification: 陪读蛙更新动态
   aiSmartContext: AI 智能上下文
   aiSmartContextDescription: 结合网页上下文提升翻译效果。需要配置 LLM 翻译服务商。
+  cacheHitHighlight: 高亮缓存命中字段
   more:
     title: 更多
     translationHub: 翻译中心
@@ -713,6 +714,11 @@ options:
         description: 仅视口只抓当前可视内容和相关元数据。整页保持原来的全页抓取行为。
         viewport: 仅视口
         document: 整页内容
+    shortTextCache:
+      title: 短文本稳定缓存
+      description: 为明显稳定的短文本建立上下文无关缓存，减少重复请求与磁盘读取
+      enable: 启用短文本稳定缓存
+      enableDescription: 默认开启。对如 Download、Settings 这类短文本，优先复用稳定缓存；较长或明显依赖上下文的文本仍走原有缓存路径。
   glossary:
     title: 词汇表
     description: 定义专有名词、参考翻译与简介。LLM 翻译会把命中项注入提示词，机器翻译会在发送前替换原文中的命中词。
@@ -762,6 +768,47 @@ options:
       description: 周期内批量翻译节省的请求百分比
       originalRequestCount: 原始请求数量
       batchRequestCount: 批量请求数量
+  cache:
+    title: 缓存表
+    range:
+      label: 统计区间
+      loading: 正在加载统计区间...
+      description: 当前统计范围：过去 $1，时间区间 $2 至 $3
+    actions:
+      viewL1: 查看 L1 缓存
+      viewL2: 查看 L2 缓存
+      refresh: 刷新概览
+    metrics:
+      totalRequests: 总请求数
+      totalHits: 总命中数
+      totalMisses: 总未命中数
+      hitRate: 总命中率
+      exactL1Hits: L1 精确命中
+      exactL2Hits: L2 精确命中
+      stableL1Hits: L1 短文本命中
+      stableL2Hits: L2 短文本命中
+    tables:
+      l1Exact: L1 精确缓存条目
+      l1Stable: L1 短文本条目
+      l2Exact: L2 精确缓存条目
+      l2Stable: L2 短文本条目
+      l2Summary: L2 摘要条目
+    dialog:
+      l1Title: L1 缓存详情
+      l2Title: L2 缓存详情
+      loading: 正在加载缓存详情...
+      description: 显示最近 $1 条记录，生成时间：$2
+      searchPlaceholder: 搜索 key 或内容
+      entryCount: 共 $1 条
+      filteredEntryCount: 匹配 $1 条
+      limitHint: 仅展示最近 $1 条
+      empty: 当前没有可显示的条目
+      emptySearch: 没有匹配的缓存条目
+      columns:
+        key: Key
+        content: 内容
+        createdAt: 创建时间
+        expiresIn: 剩余有效期
   config:
     title: 配置
     sync:

@@ -20,6 +20,7 @@ import { queryClient } from "@/utils/tanstack-query"
 import { getLocalThemeMode } from "@/utils/theme"
 import App from "./app"
 import { getIsInPatterns, isCurrentSiteInPatternsAtom, isPageTranslatedAtom } from "./atoms/auto-translate"
+import { isCacheHitHighlightEnabledAtom } from "./atoms/cache-hit-highlight"
 import { isIgnoreTabAtom, isIgnoreUrl } from "./atoms/ignore"
 import { isCurrentSiteInBlacklistAtom, isCurrentSiteInWhitelistAtom, isInSiteControlList } from "./atoms/site-control"
 import "@/assets/styles/text-small.css"
@@ -32,6 +33,7 @@ function HydrateAtoms({
   initialValues: [
     [typeof configAtom, Config],
     [typeof isPageTranslatedAtom, boolean],
+    [typeof isCacheHitHighlightEnabledAtom, boolean],
     [typeof isCurrentSiteInPatternsAtom, boolean],
     [typeof isIgnoreTabAtom, boolean],
     [typeof isCurrentSiteInWhitelistAtom, boolean],
@@ -61,11 +63,19 @@ async function initApp() {
   const tabId = activeTab[0].id
 
   let isPageTranslated: boolean = false
+  let isCacheHitHighlightEnabled = false
   if (tabId) {
-    isPageTranslated
-      = (await sendMessage("getEnablePageTranslationByTabId", {
+    const [pageTranslated, cacheHitHighlightEnabled] = await Promise.all([
+      sendMessage("getEnablePageTranslationByTabId", {
         tabId,
-      })) ?? false
+      }),
+      sendMessage("getCacheHighlightStateByTabId", {
+        tabId,
+      }),
+    ])
+
+    isPageTranslated = pageTranslated ?? false
+    isCacheHitHighlightEnabled = cacheHitHighlightEnabled ?? false
   }
 
   const isInPatterns = tabId
@@ -89,6 +99,7 @@ async function initApp() {
             initialValues={[
               [configAtom, config],
               [isPageTranslatedAtom, isPageTranslated],
+              [isCacheHitHighlightEnabledAtom, isCacheHitHighlightEnabled],
               [isCurrentSiteInPatternsAtom, isInPatterns],
               [isIgnoreTabAtom, isIgnoreTab],
               [isCurrentSiteInWhitelistAtom, isInWhitelist],

@@ -1,4 +1,5 @@
 import type { APICallError } from "ai"
+import type { TranslationResult } from "@/types/translation-cache"
 import * as React from "react"
 import textSmallCSS from "@/assets/styles/text-small.css?inline"
 import themeCSS from "@/assets/styles/theme.css?inline"
@@ -6,7 +7,7 @@ import { TranslationError } from "@/components/translation/error"
 import { createReactShadowHost } from "@/utils/react-shadow-host/create-shadow-host"
 import { TRANSLATION_ERROR_CONTAINER_CLASS } from "../../../constants/dom-labels"
 import { getOwnerDocument } from "../../dom/node"
-import { translateTextForPage } from "../translate-variants"
+import { translateTextForPageWithResult } from "../translate-variants"
 
 /**
  * Create a lightweight spinner element without React/Shadow DOM overhead
@@ -81,11 +82,11 @@ export async function getTranslatedTextAndRemoveSpinner(
   options?: {
     signal?: AbortSignal
   },
-): Promise<string | undefined> {
-  let translatedText: string | undefined
+): Promise<TranslationResult | undefined> {
+  let translatedResult: TranslationResult | undefined
 
   try {
-    translatedText = await translateTextForPage(textContent)
+    translatedResult = await translateTextForPageWithResult(textContent)
     if (options?.signal?.aborted) {
       return undefined
     }
@@ -119,5 +120,5 @@ export async function getTranslatedTextAndRemoveSpinner(
     spinner.remove()
   }
 
-  return translatedText
+  return translatedResult
 }

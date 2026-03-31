@@ -35,6 +35,7 @@ popup:
     notification: What's new in Read Frog
   aiSmartContext: AI Smart Context
   aiSmartContextDescription: Uses webpage context to improve translation quality. Requires LLM translation provider.
+  cacheHitHighlight: Highlight cache hits
   more:
     title: More
     translationHub: Translation Hub
@@ -713,6 +714,11 @@ options:
         description: Viewport only captures visible content and related metadata. Document keeps the previous full-page capture behavior.
         viewport: Viewport Only
         document: Entire Document
+    shortTextCache:
+      title: Stable Cache for Short Text
+      description: Cache clearly stable short text without page context to reduce repeated requests and disk reads
+      enable: Enable Stable Cache for Short Text
+      enableDescription: Enabled by default. Short text such as Download or Settings reuses the stable cache first, while longer or context-sensitive text still uses the original cache path.
   glossary:
     title: Glossary
     description: Define proper nouns, preferred translations, and descriptions. LLM translation injects matches into the prompt, while machine translation replaces matched terms before sending.
@@ -762,6 +768,47 @@ options:
       description: Percentage of requests saved by batch translation in the period
       originalRequestCount: Original Request Count
       batchRequestCount: Batch Request Count
+  cache:
+    title: Cache Tables
+    range:
+      label: Time Range
+      loading: Loading time range...
+      description: "Current statistics range: past $1, from $2 to $3"
+    actions:
+      viewL1: View L1 Cache
+      viewL2: View L2 Cache
+      refresh: Refresh Overview
+    metrics:
+      totalRequests: Total Requests
+      totalHits: Total Hits
+      totalMisses: Total Misses
+      hitRate: Hit Rate
+      exactL1Hits: Exact L1 Hits
+      exactL2Hits: Exact L2 Hits
+      stableL1Hits: Stable L1 Hits
+      stableL2Hits: Stable L2 Hits
+    tables:
+      l1Exact: L1 Exact Entries
+      l1Stable: L1 Stable Entries
+      l2Exact: L2 Exact Entries
+      l2Stable: L2 Stable Entries
+      l2Summary: L2 Summary Entries
+    dialog:
+      l1Title: L1 Cache Details
+      l2Title: L2 Cache Details
+      loading: Loading cache details...
+      description: Showing the latest $1 records, generated at $2
+      searchPlaceholder: Search by key or content
+      entryCount: $1 entries
+      filteredEntryCount: $1 matched
+      limitHint: Showing only the latest $1 entries
+      empty: No entries available
+      emptySearch: No matching cache entries
+      columns:
+        key: Key
+        content: Content
+        createdAt: Created At
+        expiresIn: Expires In
   config:
     title: Config
     sync:

@@ -105,6 +105,7 @@ export const customPromptsConfigSchema = z.object({
 export const translateConfigSchema = z.object({
   providerId: z.string().nonempty(),
   mode: translationModeSchema,
+  enableShortTextCache: z.boolean(),
   node: z.object({
     enabled: z.boolean(),
     hotkey: z.enum(HOTKEYS),

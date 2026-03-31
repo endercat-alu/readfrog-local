@@ -15,7 +15,7 @@ import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
 import { initMockData } from "./mock-data"
 import { proxyFetch } from "./proxy-fetch"
 import { setupKagiTranslateMessageHandlers } from "./kagi-translate"
-import { setUpSubtitlesTranslationQueue, setUpWebPageTranslationQueue } from "./translation-queues"
+import { clearTranslationMemoryCaches, setUpSubtitlesTranslationQueue, setUpWebPageTranslationQueue } from "./translation-queues"
 import { translationMessage } from "./translation-signal"
 import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
 
@@ -65,6 +65,7 @@ export default defineBackground({
     })
 
     onMessage("clearAllTranslationRelatedCache", async () => {
+      clearTranslationMemoryCaches()
       await cleanupAllTranslationCache()
       await cleanupAllSummaryCache()
     })

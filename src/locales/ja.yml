@@ -30,6 +30,7 @@ popup:
     notification: 読書カエルの最新情報
   aiSmartContext: AI スマートコンテキスト
   aiSmartContextDescription: ウェブページのコンテキストを使用して翻訳品質を向上させます。LLM翻訳プロバイダーが必要です。
+  cacheHitHighlight: キャッシュ命中箇所をハイライト
   more:
     title: その他
     translationHub: 翻訳ハブ

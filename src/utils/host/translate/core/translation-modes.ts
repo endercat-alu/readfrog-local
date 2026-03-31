@@ -14,6 +14,7 @@ import { getOwnerDocument } from "../../dom/node"
 import { extractTextContent } from "../../dom/traversal"
 import { removeTranslatedWrapperWithRestore, shouldRestoreOriginalContentForWrapper } from "../dom/translation-cleanup"
 import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
+import { applyCacheHitMetadata } from "../cache-hit-debug"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
 import { shouldFilterSmallParagraph } from "../filter-small-paragraph"
 import { shouldIgnoreTextByHeuristics } from "../node-ignore-heuristics"
@@ -121,14 +122,15 @@ export async function translateNodesBilingualMode(
     }
     batchDOMOperation(insertOperation)
 
-    const realTranslatedText = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
+    const translatedResult = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
 
     if (options?.signal?.aborted) {
       batchDOMOperation(() => translatedWrapperNode.remove())
       return
     }
 
-    const translatedText = realTranslatedText === textContent ? "" : realTranslatedText
+    const translatedText = translatedResult?.translation === textContent ? "" : translatedResult?.translation
+    applyCacheHitMetadata(translatedWrapperNode, translatedResult?.cacheHit)
 
     if (!translatedText) {
       // Only remove wrapper if translation returned empty (not needed),
@@ -303,12 +305,14 @@ export async function translateNodeTranslationOnlyMode(
     }
     batchDOMOperation(insertOperation)
 
-    const translatedText = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
+    const translatedResult = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
 
     if (options?.signal?.aborted) {
       batchDOMOperation(() => translatedWrapperNode.remove())
       return
     }
+
+    const translatedText = translatedResult?.translation
 
     if (!translatedText) {
       // Keep the wrapper when translation failed so the injected error UI remains visible.
@@ -321,6 +325,7 @@ export async function translateNodeTranslationOnlyMode(
     }
 
     translatedWrapperNode.innerHTML = translatedText
+    applyCacheHitMetadata(translatedWrapperNode, translatedResult?.cacheHit)
 
     // Batch final DOM mutations to reduce layout thrashing
     batchDOMOperation(() => {

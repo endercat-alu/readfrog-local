@@ -30,6 +30,7 @@ popup:
     notification: Read Frog'da yenilikler
   aiSmartContext: AI Akıllı Bağlam
   aiSmartContextDescription: Çeviri kalitesini artırmak için web sayfası bağlamını kullanır. LLM çeviri sağlayıcısı gerektirir.
+  cacheHitHighlight: Önbellek isabetlerini vurgula
   more:
     title: Daha Fazla
     translationHub: Çeviri Merkezi

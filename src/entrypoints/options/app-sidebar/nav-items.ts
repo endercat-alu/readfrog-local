@@ -1,4 +1,5 @@
 import { ApiProvidersPage } from "../pages/api-providers"
+import { CachePage } from "../pages/cache"
 import { ConfigPage } from "../pages/config"
 import { ContextMenuPage } from "../pages/context-menu"
 import { CustomFeaturesPage } from "../pages/custom-features"
@@ -25,5 +26,6 @@ export const ROUTE_CONFIG = [
   { path: "/input-translation", component: InputTranslationPage },
   ...(import.meta.env.BROWSER === "firefox" ? [] : [{ path: "/tts", component: TextToSpeechPage }]),
   { path: "/statistics", component: StatisticsPage },
+  { path: "/cache", component: CachePage },
   { path: "/config", component: ConfigPage },
 ] as const
