@@ -5,6 +5,7 @@ import fluentCollection from "@/assets/iconify/fluent.json"
 import logosCollection from "@/assets/iconify/logos.json"
 import mdiCollection from "@/assets/iconify/mdi.json"
 import riCollection from "@/assets/iconify/ri.json"
+import tablerExtraCollection from "@/assets/iconify/tabler-extra.json"
 import tablerCollection from "@/assets/iconify/tabler.json"
 
 let isRegistered = false
@@ -15,6 +16,7 @@ function ensureLocalCollections() {
   }
 
   addCollection(tablerCollection)
+  addCollection(tablerExtraCollection)
   addCollection(mdiCollection)
   addCollection(logosCollection)
   addCollection(riCollection)
