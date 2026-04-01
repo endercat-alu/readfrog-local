@@ -7,7 +7,6 @@ import {
   WALKED_ATTRIBUTE,
 } from "@/utils/constants/dom-labels"
 import { FORCE_BLOCK_TAGS } from "@/utils/constants/dom-rules"
-import { shouldIgnoreElementByRules } from "../translate/page-rules"
 import {
   getShallowElementDisplayKind,
   isCustomForceBlockTranslation,
@@ -59,10 +58,6 @@ export function extractTextContent(node: TransNode, config: Config): string {
   // if (isDontWalkIntoButTranslateAsChildElement(node)) {
   //   return ''
   // }
-
-  if (shouldIgnoreElementByRules(node, window.location.href, config)) {
-    return ""
-  }
 
   if (isDontWalkIntoAndDontTranslateAsChildElement(node, config)) {
     return ""

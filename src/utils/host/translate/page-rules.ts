@@ -26,6 +26,16 @@ interface ParagraphRuleContext extends BaseRuleContext {
   getWordCount: () => number
 }
 
+interface RuleIndex {
+  pageRules: PageRule[]
+  paragraphSkipRules: PageRule[]
+  semanticTagRules: PageRule[]
+  autoPageProcessableByUrl: Map<string, boolean>
+  semanticIgnoreByUrl: Map<string, boolean>
+}
+
+const ruleIndexCache = new WeakMap<Config, RuleIndex>()
+
 function matchesRuleStage(rule: PageRule, stage: PageRuleStage): boolean {
   return rule.enabled && rule.action.scope === stage
 }
@@ -95,6 +105,54 @@ function evaluatePartialUrlMatch(node: PageRuleNode, url: string): PartialMatchR
   }
 
   return hasUnknown ? null : false
+}
+
+function treeHasSemanticTagRule(node: PageRuleNode): boolean {
+  if (node.kind === "condition") {
+    return node.field === "heuristic" && node.value === "semanticTags"
+  }
+
+  return node.items.some(treeHasSemanticTagRule)
+}
+
+function getRuleIndex(config: Config): RuleIndex {
+  const cached = ruleIndexCache.get(config)
+  if (cached) {
+    return cached
+  }
+
+  const pageRules: PageRule[] = []
+  const paragraphSkipRules: PageRule[] = []
+  const semanticTagRules: PageRule[] = []
+
+  for (const rule of config.translate.page.rules) {
+    if (!rule.enabled) {
+      continue
+    }
+
+    if (rule.action.scope === "page") {
+      pageRules.push(rule)
+      continue
+    }
+
+    if (rule.action.type === "skip") {
+      paragraphSkipRules.push(rule)
+      if (treeHasSemanticTagRule(rule.when)) {
+        semanticTagRules.push(rule)
+      }
+    }
+  }
+
+  const index = {
+    pageRules,
+    paragraphSkipRules,
+    semanticTagRules,
+    autoPageProcessableByUrl: new Map<string, boolean>(),
+    semanticIgnoreByUrl: new Map<string, boolean>(),
+  }
+
+  ruleIndexCache.set(config, index)
+  return index
 }
 
 async function evaluateRuleNode(
@@ -172,8 +230,19 @@ function getResolvedPageLanguage(
 }
 
 export function shouldProcessAutoPageRulesForUrl(url: string, config: Config): boolean {
-  const pageRules = config.translate.page.rules.filter(rule => matchesRuleStage(rule, "page"))
-  return pageRules.some(rule => evaluatePartialUrlMatch(rule.when, url) !== false)
+  const ruleIndex = getRuleIndex(config)
+  const cached = ruleIndex.autoPageProcessableByUrl.get(url)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  const result = ruleIndex.pageRules.some(rule => evaluatePartialUrlMatch(rule.when, url) !== false)
+  ruleIndex.autoPageProcessableByUrl.set(url, result)
+  return result
+}
+
+export function hasParagraphSkipRules(config: Config): boolean {
+  return getRuleIndex(config).paragraphSkipRules.length > 0
 }
 
 export function hasEnabledRuleField(
@@ -216,12 +285,9 @@ export async function getPageRuleAction(
   config: Config,
 ): Promise<"translate" | "skip" | null> {
   const pageLanguage = getResolvedPageLanguage(config, detectedCodeOrUnd)
+  const { pageRules } = getRuleIndex(config)
 
-  for (const rule of config.translate.page.rules) {
-    if (!matchesRuleStage(rule, "page")) {
-      continue
-    }
-
+  for (const rule of pageRules) {
     if (await evaluateRuleNode(rule.when, { url, pageLanguage })) {
       return rule.action.type
     }
@@ -238,16 +304,16 @@ export async function shouldSkipParagraphTranslationByRules(
   pageDetectedCode: LangCodeISO6393,
   nodes: readonly TransNode[] = [],
 ): Promise<boolean> {
-  const paragraphRules = config.translate.page.rules.filter(rule =>
-    matchesRuleStage(rule, "paragraph") && rule.action.type === "skip",
-  )
+  const { paragraphSkipRules: paragraphRules } = getRuleIndex(config)
 
   if (paragraphRules.length === 0) {
     return false
   }
 
-  const pageLanguage = getResolvedPageLanguage(config, pageDetectedCode)
-  const sourceLanguage = getFinalSourceCode(config.language.sourceCode, pageDetectedCode)
+  const needsPageLanguage = hasEnabledRuleField(paragraphRules, "pageLanguage", "paragraph")
+  const needsWordCount = hasEnabledRuleField(paragraphRules, "wordCountLessThan", "paragraph")
+  const pageLanguage = needsPageLanguage ? getResolvedPageLanguage(config, pageDetectedCode) : null
+  const sourceLanguage = needsWordCount ? getFinalSourceCode(config.language.sourceCode, pageDetectedCode) : pageDetectedCode
   let paragraphLanguagePromise: Promise<LangCodeISO6393 | null> | null = null
   let wordCount: number | null = null
 
@@ -266,6 +332,10 @@ export async function shouldSkipParagraphTranslationByRules(
   const getWordCount = (): number => {
     if (wordCount !== null) {
       return wordCount
+    }
+
+    if (!needsWordCount) {
+      return 0
     }
 
     const locale = ISO6393_TO_6391[sourceLanguage] ?? "en"
@@ -350,9 +420,13 @@ export function shouldIgnoreElementByRules(
     return false
   }
 
-  return config.translate.page.rules.some(rule =>
-    matchesRuleStage(rule, "paragraph")
-    && rule.action.type === "skip"
-    && evaluateSemanticRuleNode(rule.when, url) === true,
-  )
+  const ruleIndex = getRuleIndex(config)
+  const cached = ruleIndex.semanticIgnoreByUrl.get(url)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  const result = ruleIndex.semanticTagRules.some(rule => evaluateSemanticRuleNode(rule.when, url) === true)
+  ruleIndex.semanticIgnoreByUrl.set(url, result)
+  return result
 }

@@ -18,7 +18,7 @@ import { removeTranslatedWrapperWithRestore, shouldRestoreOriginalContentForWrap
 import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
 import { applyCacheHitMetadata } from "../cache-hit-debug"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
-import { shouldSkipParagraphTranslationByRules } from "../page-rules"
+import { hasParagraphSkipRules, shouldSkipParagraphTranslationByRules } from "../page-rules"
 import { setPageTranslationRuntimeConfig } from "../runtime-config"
 import { setTranslationDirAndLang } from "../translation-attributes"
 import { createSpinnerInside, getTranslatedTextAndRemoveSpinner } from "../ui/spinner"
@@ -95,8 +95,10 @@ export async function translateNodesBilingualMode(
     if (!textContent)
       return
 
-    if (await shouldSkipParagraphTranslationByRules(textContent, window.location.href, config, resolveProviderConfig(config, "translate"), await getDetectedCodeFromStorage(), transNodes))
-      return
+    if (hasParagraphSkipRules(config)) {
+      if (await shouldSkipParagraphTranslationByRules(textContent, window.location.href, config, resolveProviderConfig(config, "translate"), await getDetectedCodeFromStorage(), transNodes))
+        return
+    }
 
     if (options?.signal?.aborted)
       return
@@ -250,8 +252,10 @@ export async function translateNodeTranslationOnlyMode(
     if (!innerTextContent.trim())
       return
 
-    if (await shouldSkipParagraphTranslationByRules(innerTextContent, window.location.href, config, resolveProviderConfig(config, "translate"), await getDetectedCodeFromStorage(), transNodes))
-      return
+    if (hasParagraphSkipRules(config)) {
+      if (await shouldSkipParagraphTranslationByRules(innerTextContent, window.location.href, config, resolveProviderConfig(config, "translate"), await getDetectedCodeFromStorage(), transNodes))
+        return
+    }
 
     const cleanTextContent = (content: string): string => {
       if (!content)
