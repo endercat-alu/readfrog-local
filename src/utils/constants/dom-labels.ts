@@ -19,6 +19,8 @@ export function createObfuscatedPropertyKey(): string {
 export const CONTENT_WRAPPER_CLASS = createObfuscatedClassName()
 export const INLINE_CONTENT_CLASS = createObfuscatedClassName()
 export const BLOCK_CONTENT_CLASS = createObfuscatedClassName()
+export const FAST_TRANSLATION_INDICATOR_CLASS = createObfuscatedClassName()
+export const FAST_TRANSLATION_INDICATOR_STATE_ATTRIBUTE = createObfuscatedAttributeName()
 
 export const WALKED_ATTRIBUTE = createObfuscatedAttributeName()
 // paragraph means you need to trigger translation on this element (i.e. we have inline children in it)

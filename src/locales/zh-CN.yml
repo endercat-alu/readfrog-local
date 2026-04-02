@@ -184,6 +184,7 @@ options:
       customFeatures: 自定义 AI 功能
       features:
         translate: 网页翻译
+        translate_fastTranslation: 网页翻译快速供应商
         selectionToolbar_translate: 划词翻译
         selectionToolbar_vocabularyInsight: 划词词汇解析
         tts: 文本转语音
@@ -613,6 +614,15 @@ options:
       mode:
         bilingual: 双语对照
         translationOnly: 仅显示翻译
+    fastTranslation:
+      title: 并发速译
+      description: 同时请求默认供应商和快速供应商，谁先返回先显示；启用默认供应商覆写后，默认供应商稍后返回时会覆盖快速结果。
+      enable: 启用并发速译
+      enableDescription: 仅对网页翻译生效，同时向两个供应商发起请求以缩短首个译文出现时间。
+      provider: 快速供应商
+      sameAsDefaultProvider: 当前快速供应商与默认供应商相同，并发速译不会生效。
+      overwriteWithDefault: 默认供应商返回后覆写快速译文
+      overwriteWithDefaultDescription: 关闭后，谁先返回就保留谁的结果。
     translateRange:
       title: 翻译范围
       description: 选择是仅翻译主要内容还是翻译页面上的所有内容。

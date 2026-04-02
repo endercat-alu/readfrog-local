@@ -184,6 +184,7 @@ options:
       customFeatures: Custom AI Features
       features:
         translate: Page Translation
+        translate_fastTranslation: Page Translation Fast Provider
         selectionToolbar_translate: Selection Toolbar Translation
         selectionToolbar_vocabularyInsight: Selection Toolbar Vocabulary Insight
         tts: Text to Speech
@@ -613,6 +614,15 @@ options:
       mode:
         bilingual: Bilingual
         translationOnly: Translation Only
+    fastTranslation:
+      title: Concurrent Fast Translation
+      description: Request both the default provider and a fast provider at the same time. Show whichever returns first, and optionally overwrite it when the default provider finishes later.
+      enable: Enable Concurrent Fast Translation
+      enableDescription: Only applies to page translation and sends requests to two providers in parallel to reduce time-to-first-translation.
+      provider: Fast Provider
+      sameAsDefaultProvider: The fast provider matches the default provider, so concurrent fast translation will not take effect.
+      overwriteWithDefault: Overwrite with default provider
+      overwriteWithDefaultDescription: When disabled, whichever provider returns first keeps its result.
     translateRange:
       title: Translate Range
       description: Select whether to translate only the main content or all content on the page.

@@ -60,6 +60,13 @@ export const preloadConfigSchema = z.object({
 })
 export type PreloadConfig = z.infer<typeof preloadConfigSchema>
 
+export const fastTranslationConfigSchema = z.object({
+  enabled: z.boolean(),
+  providerId: z.string().nonempty(),
+  overwriteWithDefaultProvider: z.boolean(),
+})
+export type FastTranslationConfig = z.infer<typeof fastTranslationConfigSchema>
+
 export const RULE_LOGICAL_OPERATORS = ["and", "or"] as const
 export const ruleLogicalOperatorSchema = z.enum(RULE_LOGICAL_OPERATORS)
 export type RuleLogicalOperator = z.infer<typeof ruleLogicalOperatorSchema>
@@ -265,6 +272,7 @@ export const translateConfigSchema = z.object({
     shortcut: z.array(z.string()),
     preload: preloadConfigSchema,
     paragraphSegmentation: paragraphSegmentationConfigSchema,
+    fastTranslation: fastTranslationConfigSchema,
   }),
   enableAIContentAware: z.boolean(),
   aiContentAwareMode: aiContentAwareModeSchema,

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { executeTranslate } from "@/utils/host/translate/execute-translate"
-import { translateTextForPage } from "@/utils/host/translate/translate-variants"
+import { translateTextForPage, translateTextForPageWithResult } from "@/utils/host/translate/translate-variants"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
 
 // Mock dependencies
@@ -102,6 +102,135 @@ describe("translate-text", () => {
         text: "Download",
         stableCacheKey: undefined,
       }))
+    })
+
+    it("should not request two translations when fast provider matches default provider", async () => {
+      mockSendMessage.mockResolvedValue({ translation: "translated text" })
+
+      const result = await translateTextForPageWithResult("test text")
+
+      expect(result.translation).toBe("translated text")
+      expect(mockSendMessage).toHaveBeenCalledTimes(1)
+    })
+
+    it("should show fast provider result first and overwrite with default provider result", async () => {
+      let resolveDefault!: (value: { translation: string }) => void
+      let resolveFast!: (value: { translation: string }) => void
+
+      mockGetConfigFromStorage.mockResolvedValue({
+        ...DEFAULT_CONFIG,
+        translate: {
+          ...DEFAULT_CONFIG.translate,
+          providerId: "openai-default",
+          page: {
+            ...DEFAULT_CONFIG.translate.page,
+            fastTranslation: {
+              enabled: true,
+              providerId: "microsoft-translate-default",
+              overwriteWithDefaultProvider: true,
+            },
+          },
+        },
+      })
+
+      mockSendMessage.mockImplementation((_type: string, payload: { providerConfig: { id: string } }) => {
+        if (payload.providerConfig.id === "openai-default") {
+          return new Promise((resolve) => {
+            resolveDefault = resolve
+          })
+        }
+
+        return new Promise((resolve) => {
+          resolveFast = resolve
+        })
+      })
+
+      const updates: Array<{ translation: string, isFinal: boolean, source: "default" | "fast" }> = []
+      const resultPromise = translateTextForPageWithResult("test text", {
+        onUpdate: (result, meta) => {
+          updates.push({
+            translation: result.translation,
+            isFinal: meta.isFinal,
+            source: meta.source,
+          })
+        },
+      })
+
+      await vi.waitFor(() => {
+        expect(resolveFast).toBeTypeOf("function")
+      })
+      resolveFast({ translation: "fast text" })
+      await vi.waitFor(() => {
+        expect(updates).toEqual([
+          { translation: "fast text", isFinal: false, source: "fast" },
+        ])
+      })
+
+      resolveDefault({ translation: "default text" })
+      const result = await resultPromise
+
+      expect(result.translation).toBe("default text")
+      expect(updates).toEqual([
+        { translation: "fast text", isFinal: false, source: "fast" },
+        { translation: "default text", isFinal: true, source: "default" },
+      ])
+    })
+
+    it("should return fast provider result immediately when overwrite is disabled", async () => {
+      let resolveDefault!: (value: { translation: string }) => void
+      let resolveFast!: (value: { translation: string }) => void
+
+      mockGetConfigFromStorage.mockResolvedValue({
+        ...DEFAULT_CONFIG,
+        translate: {
+          ...DEFAULT_CONFIG.translate,
+          providerId: "openai-default",
+          page: {
+            ...DEFAULT_CONFIG.translate.page,
+            fastTranslation: {
+              enabled: true,
+              providerId: "microsoft-translate-default",
+              overwriteWithDefaultProvider: false,
+            },
+          },
+        },
+      })
+
+      mockSendMessage.mockImplementation((_type: string, payload: { providerConfig: { id: string } }) => {
+        if (payload.providerConfig.id === "openai-default") {
+          return new Promise((resolve) => {
+            resolveDefault = resolve
+          })
+        }
+
+        return new Promise((resolve) => {
+          resolveFast = resolve
+        })
+      })
+
+      const updates: Array<{ translation: string, isFinal: boolean, source: "default" | "fast" }> = []
+      const resultPromise = translateTextForPageWithResult("test text", {
+        onUpdate: (result, meta) => {
+          updates.push({
+            translation: result.translation,
+            isFinal: meta.isFinal,
+            source: meta.source,
+          })
+        },
+      })
+
+      await vi.waitFor(() => {
+        expect(resolveFast).toBeTypeOf("function")
+      })
+      resolveFast({ translation: "fast text" })
+      const result = await resultPromise
+
+      expect(result.translation).toBe("fast text")
+      expect(updates).toEqual([
+        { translation: "fast text", isFinal: true, source: "fast" },
+      ])
+
+      resolveDefault({ translation: "default text" })
     })
   })
 

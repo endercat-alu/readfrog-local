@@ -15,7 +15,7 @@ import { unwrapDeepestOnlyHTMLChild } from "../../dom/find"
 import { getOwnerDocument } from "../../dom/node"
 import { extractTextContent } from "../../dom/traversal"
 import { removeTranslatedWrapperWithRestore, shouldRestoreOriginalContentForWrapper } from "../dom/translation-cleanup"
-import { insertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
+import { syncFastTranslationIndicator, upsertTranslatedNodeIntoWrapper } from "../dom/translation-insertion"
 import { applyCacheHitMetadata } from "../cache-hit-debug"
 import { findPreviousTranslatedWrapperInside } from "../dom/translation-wrapper"
 import { hasParagraphSkipRules, shouldSkipParagraphTranslationByRules } from "../page-rules"
@@ -23,6 +23,14 @@ import { setPageTranslationRuntimeConfig } from "../runtime-config"
 import { setTranslationDirAndLang } from "../translation-attributes"
 import { createSpinnerInside, getTranslatedTextAndRemoveSpinner } from "../ui/spinner"
 import { MARK_ATTRIBUTES_REGEX, originalContentMap, translatingNodes } from "./translation-state"
+
+function resolveFastTranslationIndicatorState(meta: { isFinal: boolean, source: "default" | "fast" }): "preview" | "final" | undefined {
+  if (meta.source === "default") {
+    return undefined
+  }
+
+  return meta.isFinal ? "final" : "preview"
+}
 
 export async function translateNodes(
   nodes: ChildNode[],
@@ -125,33 +133,34 @@ export async function translateNodesBilingualMode(
     }
     batchDOMOperation(insertOperation)
 
-    const translatedResult = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
+    await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, {
+      signal: options?.signal,
+      onResult: async (translatedResult, meta) => {
+        const translatedText = translatedResult.translation === textContent ? "" : translatedResult.translation
+        applyCacheHitMetadata(translatedWrapperNode, translatedResult.cacheHit)
+
+        if (!translatedText) {
+          if (meta.isFinal) {
+            batchDOMOperation(() => translatedWrapperNode.remove())
+          }
+          return
+        }
+
+        await upsertTranslatedNodeIntoWrapper(
+          translatedWrapperNode,
+          targetNode,
+          translatedText,
+          config.translate.translationNodeStyle,
+          forceBlockTranslation,
+        )
+        syncFastTranslationIndicator(translatedWrapperNode, resolveFastTranslationIndicatorState(meta))
+      },
+    })
 
     if (options?.signal?.aborted) {
       batchDOMOperation(() => translatedWrapperNode.remove())
       return
     }
-
-    const translatedText = translatedResult?.translation === textContent ? "" : translatedResult?.translation
-    applyCacheHitMetadata(translatedWrapperNode, translatedResult?.cacheHit)
-
-    if (!translatedText) {
-      // Only remove wrapper if translation returned empty (not needed),
-      // but keep it for error display (undefined)
-      if (translatedText === "") {
-        // Batch the remove operation to execute remove operation after insert operation
-        batchDOMOperation(() => translatedWrapperNode.remove())
-      }
-      return
-    }
-
-    await insertTranslatedNodeIntoWrapper(
-      translatedWrapperNode,
-      targetNode,
-      translatedText,
-      config.translate.translationNodeStyle,
-      forceBlockTranslation,
-    )
   }
   finally {
     transNodes.forEach(node => translatingNodes.delete(node))
@@ -310,37 +319,46 @@ export async function translateNodeTranslationOnlyMode(
     }
     batchDOMOperation(insertOperation)
 
-    const translatedResult = await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, options)
+    let hasCommittedTranslation = false
+
+    await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, {
+      signal: options?.signal,
+      onResult: async (translatedResult, meta) => {
+        const translatedText = translatedResult.translation
+
+        if (!translatedText) {
+          if (meta.isFinal) {
+            if (hasCommittedTranslation) {
+              removeTranslatedWrapperWithRestore(translatedWrapperNode)
+            }
+            else {
+              batchDOMOperation(() => translatedWrapperNode.remove())
+            }
+          }
+          return
+        }
+
+        translatedWrapperNode.innerHTML = translatedText
+        applyCacheHitMetadata(translatedWrapperNode, translatedResult.cacheHit)
+        syncFastTranslationIndicator(translatedWrapperNode, resolveFastTranslationIndicatorState(meta))
+
+        if (hasCommittedTranslation) {
+          return
+        }
+
+        hasCommittedTranslation = true
+        batchDOMOperation(() => {
+          const lastChildNode = allChildNodes[allChildNodes.length - 1]
+          lastChildNode.parentNode?.insertBefore(translatedWrapperNode, lastChildNode.nextSibling)
+          allChildNodes.forEach(childNode => childNode.remove())
+        })
+      },
+    })
 
     if (options?.signal?.aborted) {
       batchDOMOperation(() => translatedWrapperNode.remove())
       return
     }
-
-    const translatedText = translatedResult?.translation
-
-    if (!translatedText) {
-      // Keep the wrapper when translation failed so the injected error UI remains visible.
-      // Only remove the wrapper when translation returned an empty string.
-      if (translatedText === "") {
-        // Batch the remove operation to execute remove operation after insert operation
-        batchDOMOperation(() => translatedWrapperNode.remove())
-      }
-      return
-    }
-
-    translatedWrapperNode.innerHTML = translatedText
-    applyCacheHitMetadata(translatedWrapperNode, translatedResult?.cacheHit)
-
-    // Batch final DOM mutations to reduce layout thrashing
-    batchDOMOperation(() => {
-      // Insert translated content after the last node
-      const lastChildNode = allChildNodes[allChildNodes.length - 1]
-      lastChildNode.parentNode?.insertBefore(translatedWrapperNode, lastChildNode.nextSibling)
-
-      // Remove all original nodes
-      allChildNodes.forEach(childNode => childNode.remove())
-    })
   }
   finally {
     nodes.forEach(node => translatingNodes.delete(node))

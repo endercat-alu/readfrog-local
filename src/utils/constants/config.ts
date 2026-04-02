@@ -18,7 +18,7 @@ export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 export const THEME_STORAGE_KEY = "theme"
 export const DETECTED_CODE_STORAGE_KEY = "detectedCode"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 67
+export const CONFIG_SCHEMA_VERSION = 68
 
 export const NODE_IGNORE_HEURISTIC_RULESET_VERSION = 3
 
@@ -210,6 +210,11 @@ export const DEFAULT_CONFIG: Config = {
       paragraphSegmentation: {
         enabledRules: ["blankLine"],
         maxLinesPerParagraph: DEFAULT_PARAGRAPH_LINES_PER_SEGMENT,
+      },
+      fastTranslation: {
+        enabled: true,
+        providerId: "microsoft-translate-default",
+        overwriteWithDefaultProvider: true,
       },
     },
     enableAIContentAware: false,

@@ -3,6 +3,7 @@ import type { Config, InputTranslationLang } from "@/types/config/config"
 import type { TranslationResult } from "@/types/translation-cache"
 import { isLLMProviderConfig } from "@/types/config/provider"
 import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/languages"
+import { getProviderConfigById } from "@/utils/config/helpers"
 import { resolveProviderConfig } from "@/utils/constants/feature-providers"
 import { prepareGlossaryTranslation } from "@/utils/glossary/translation"
 import { logger } from "@/utils/logger"
@@ -37,6 +38,8 @@ export async function translateTextForPageWithResult(
   text: string,
   options?: {
     nodes?: ChildNode[]
+    signal?: AbortSignal
+    onUpdate?: (result: TranslationResult, meta: { isFinal: boolean, source: "default" | "fast" }) => void | Promise<void>
   },
 ): Promise<TranslationResult> {
   const config = await getConfigOrThrow()
@@ -57,33 +60,109 @@ export async function translateTextForPageWithResult(
     }
   }
 
-  const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, config.glossary.entries)
-  const exactCacheContextFingerprint = isLLMProviderConfig(providerConfig) && options?.nodes
-    ? buildLocalContextFingerprint(options.nodes, config).fingerprint
-    : undefined
-  const sharedCacheKey = options?.nodes
-    ? await buildPageSharedTextCacheKey(
-        preparedTranslation.text,
-        options.nodes,
-        config,
-        providerConfig,
-        { sourceCode: config.language.sourceCode, targetCode: config.language.targetCode },
-        preparedTranslation.glossaryPrompt,
-      )
+  const createRequest = async (targetProviderConfig = providerConfig): Promise<TranslationResult> => {
+    const preparedTranslation = prepareGlossaryTranslation(text, targetProviderConfig, config.glossary.entries)
+    const exactCacheContextFingerprint = isLLMProviderConfig(targetProviderConfig) && options?.nodes
+      ? buildLocalContextFingerprint(options.nodes, config).fingerprint
+      : undefined
+    const sharedCacheKey = options?.nodes
+      ? await buildPageSharedTextCacheKey(
+          preparedTranslation.text,
+          options.nodes,
+          config,
+          targetProviderConfig,
+          { sourceCode: config.language.sourceCode, targetCode: config.language.targetCode },
+          preparedTranslation.glossaryPrompt,
+        )
+      : undefined
+
+    return translateTextCoreWithResult({
+      text,
+      langConfig: config.language,
+      providerConfig: targetProviderConfig,
+      glossaryEntries: config.glossary.entries,
+      enableShortTextCache: config.translate.enableShortTextCache,
+      enableAIContentAware: config.translate.enableAIContentAware,
+      aiContentAwareMode: config.translate.aiContentAwareMode,
+      exactCacheContextFingerprint,
+      pageDetectedCode,
+      sharedCacheKey,
+    })
+  }
+
+  const emitUpdate = async (result: TranslationResult, meta: { isFinal: boolean, source: "default" | "fast" }) => {
+    if (options?.signal?.aborted) {
+      return
+    }
+    await options?.onUpdate?.(result, meta)
+  }
+
+  const fastTranslationConfig = config.translate.page.fastTranslation
+  const fastProviderConfig = fastTranslationConfig.enabled
+    ? getProviderConfigById(config.providersConfig, fastTranslationConfig.providerId)
     : undefined
 
-  return translateTextCoreWithResult({
-    text,
-    langConfig: config.language,
-    providerConfig,
-    glossaryEntries: config.glossary.entries,
-    enableShortTextCache: config.translate.enableShortTextCache,
-    enableAIContentAware: config.translate.enableAIContentAware,
-    aiContentAwareMode: config.translate.aiContentAwareMode,
-    exactCacheContextFingerprint,
-    pageDetectedCode,
-    sharedCacheKey,
-  })
+  if (!fastProviderConfig || !fastProviderConfig.enabled || fastProviderConfig.id === providerConfig.id) {
+    const result = await createRequest()
+    await emitUpdate(result, { isFinal: true, source: "default" })
+    return result
+  }
+
+  const trackResult = async (promise: Promise<TranslationResult>) => {
+    try {
+      return { ok: true as const, result: await promise }
+    }
+    catch (error) {
+      return { ok: false as const, error }
+    }
+  }
+
+  const defaultTrackedPromise = trackResult(createRequest())
+  const fastTrackedPromise = trackResult(createRequest(fastProviderConfig))
+
+  const firstCompleted = await Promise.race([
+    defaultTrackedPromise.then(result => ({ provider: "default" as const, ...result })),
+    fastTrackedPromise.then(result => ({ provider: "fast" as const, ...result })),
+  ])
+
+  const finalizeWith = async (result: TranslationResult) => {
+    await emitUpdate(result, { isFinal: true, source: "default" })
+    return result
+  }
+
+  if (firstCompleted.ok) {
+    if (firstCompleted.provider === "default") {
+      void fastTrackedPromise.then(() => {}).catch(() => {})
+      return finalizeWith(firstCompleted.result)
+    }
+
+    if (!fastTranslationConfig.overwriteWithDefaultProvider) {
+      void defaultTrackedPromise.then(() => {}).catch(() => {})
+      await emitUpdate(firstCompleted.result, { isFinal: true, source: "fast" })
+      return firstCompleted.result
+    }
+
+    if (firstCompleted.result.translation) {
+      await emitUpdate(firstCompleted.result, { isFinal: false, source: "fast" })
+    }
+
+    const defaultCompleted = await defaultTrackedPromise
+    if (defaultCompleted.ok) {
+      return finalizeWith(defaultCompleted.result)
+    }
+
+    return finalizeWith(firstCompleted.result)
+  }
+
+  const secondCompleted = firstCompleted.provider === "default"
+    ? await fastTrackedPromise
+    : await defaultTrackedPromise
+
+  if (secondCompleted.ok) {
+    return finalizeWith(secondCompleted.result)
+  }
+
+  throw firstCompleted.error
 }
 
 /**

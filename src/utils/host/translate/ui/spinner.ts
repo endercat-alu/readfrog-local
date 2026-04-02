@@ -81,14 +81,37 @@ export async function getTranslatedTextAndRemoveSpinner(
   translatedWrapperNode: HTMLElement,
   options?: {
     signal?: AbortSignal
+    onResult?: (result: TranslationResult, meta: { isFinal: boolean, source: "default" | "fast" }) => void | Promise<void>
   },
 ): Promise<TranslationResult | undefined> {
   let translatedResult: TranslationResult | undefined
+  let deliveredFinalResult = false
+
+  const removeSpinner = () => {
+    if (spinner.isConnected) {
+      spinner.remove()
+    }
+  }
 
   try {
-    translatedResult = await translateTextForPageWithResult(textContent, { nodes })
+    translatedResult = await translateTextForPageWithResult(textContent, {
+      nodes,
+      signal: options?.signal,
+      onUpdate: async (result, meta) => {
+        removeSpinner()
+        if (meta.isFinal) {
+          deliveredFinalResult = true
+        }
+        await options?.onResult?.(result, meta)
+      },
+    })
     if (options?.signal?.aborted) {
       return undefined
+    }
+
+    if (!deliveredFinalResult && translatedResult) {
+      removeSpinner()
+      await options?.onResult?.(translatedResult, { isFinal: true, source: "default" })
     }
   }
   catch (error) {
@@ -117,7 +140,7 @@ export async function getTranslatedTextAndRemoveSpinner(
     translatedWrapperNode.appendChild(container)
   }
   finally {
-    spinner.remove()
+    removeSpinner()
   }
 
   return translatedResult

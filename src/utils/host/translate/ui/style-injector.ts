@@ -5,6 +5,8 @@ import {
   CACHE_HIT_DEBUG_TARGET_CLASS,
   CACHE_HIT_DEBUG_WRAPPER_CLASS,
   CONTENT_WRAPPER_CLASS,
+  FAST_TRANSLATION_INDICATOR_CLASS,
+  FAST_TRANSLATION_INDICATOR_STATE_ATTRIBUTE,
   INLINE_CONTENT_CLASS,
   createObfuscatedClassName,
 } from "@/utils/constants/dom-labels"
@@ -84,6 +86,47 @@ function buildTranslationBaseCSS(): string {
   color: inherit;
   font-family: inherit;
   text-decoration: inherit;
+}
+
+.${FAST_TRANSLATION_INDICATOR_CLASS} {
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  margin-right: 0.45em;
+  border-radius: 999px;
+  vertical-align: 0.08em;
+  background: color-mix(in srgb, var(--read-frog-primary) 38%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--read-frog-primary) 20%, transparent);
+  opacity: 0.8;
+}
+
+.${FAST_TRANSLATION_INDICATOR_CLASS}[${FAST_TRANSLATION_INDICATOR_STATE_ATTRIBUTE}="preview"] {
+  background: color-mix(in srgb, var(--read-frog-primary) 52%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--read-frog-primary) 28%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--read-frog-primary) 10%, transparent);
+}
+
+.${FAST_TRANSLATION_INDICATOR_CLASS}[${FAST_TRANSLATION_INDICATOR_STATE_ATTRIBUTE}="final"] {
+  background: color-mix(in srgb, var(--read-frog-primary) 32%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--read-frog-primary) 16%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .${FAST_TRANSLATION_INDICATOR_CLASS}[${FAST_TRANSLATION_INDICATOR_STATE_ATTRIBUTE}="preview"] {
+    animation: read-frog-fast-translation-indicator 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes read-frog-fast-translation-indicator {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.82;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
 }
 
 .${CACHE_HIT_DEBUG_WRAPPER_CLASS},

@@ -124,6 +124,10 @@ export default function FeatureProvidersConfig() {
           featureKey="translate"
           excludeProviderTypes={config.translate.mode === "translationOnly" ? ["google-translate"] : undefined}
         />
+        <FeatureProviderField
+          featureKey="translate.fastTranslation"
+          excludeProviderTypes={config.translate.mode === "translationOnly" ? ["google-translate"] : undefined}
+        />
         <FeatureProviderField featureKey="videoSubtitles" />
         <FeatureProviderField featureKey="selectionToolbar.translate" />
         <FeatureProviderField featureKey="selectionToolbar.vocabularyInsight" />

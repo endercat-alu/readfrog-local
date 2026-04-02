@@ -5,6 +5,7 @@ import { getProviderConfigById } from "../config/helpers"
 
 export const FEATURE_KEYS = [
   "translate",
+  "translate.fastTranslation",
   "videoSubtitles",
   "selectionToolbar.translate",
   "selectionToolbar.vocabularyInsight",
@@ -24,6 +25,11 @@ export const FEATURE_PROVIDER_DEFS = {
     isProvider: isTranslateProvider,
     getProviderId: (c: Config) => c.translate.providerId,
     configPath: ["translate", "providerId"],
+  },
+  "translate.fastTranslation": {
+    isProvider: isTranslateProvider,
+    getProviderId: (c: Config) => c.translate.page.fastTranslation.providerId,
+    configPath: ["translate", "page", "fastTranslation", "providerId"],
   },
   "videoSubtitles": {
     isProvider: isTranslateProvider,
@@ -50,6 +56,7 @@ export const FEATURE_PROVIDER_DEFS = {
 /** Maps FeatureKey (with dots) to i18n-safe key (with underscores) for `options.general.featureProviders.features.*` */
 export const FEATURE_KEY_I18N_MAP: Record<FeatureKey, string> = {
   "translate": "translate",
+  "translate.fastTranslation": "translate_fastTranslation",
   "videoSubtitles": "videoSubtitles",
   "selectionToolbar.translate": "selectionToolbar_translate",
   "selectionToolbar.vocabularyInsight": "selectionToolbar_vocabularyInsight",

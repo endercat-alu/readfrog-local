@@ -32,12 +32,18 @@ describe("feature providers", () => {
     it("builds patch for multiple feature assignments", () => {
       const patch = buildFeatureProviderPatch({
         "translate": "microsoft-translate-default",
+        "translate.fastTranslation": "google-translate-default",
         "selectionToolbar.vocabularyInsight": "openai-default",
       })
 
       expect(patch).toEqual({
         translate: {
           providerId: "microsoft-translate-default",
+          page: {
+            fastTranslation: {
+              providerId: "google-translate-default",
+            },
+          },
         },
         selectionToolbar: {
           features: {
@@ -57,6 +63,13 @@ describe("feature providers", () => {
         translate: {
           ...DEFAULT_CONFIG.translate,
           providerId: "deleted-provider",
+          page: {
+            ...DEFAULT_CONFIG.translate.page,
+            fastTranslation: {
+              ...DEFAULT_CONFIG.translate.page.fastTranslation,
+              providerId: "deleted-provider",
+            },
+          },
         },
         videoSubtitles: {
           ...DEFAULT_CONFIG.videoSubtitles,
@@ -85,6 +98,7 @@ describe("feature providers", () => {
 
       expect(fallbacks).toEqual({
         "translate": "microsoft-translate-default",
+        "translate.fastTranslation": "microsoft-translate-default",
         "videoSubtitles": "microsoft-translate-default",
         "selectionToolbar.translate": "microsoft-translate-default",
         "selectionToolbar.vocabularyInsight": "openai-default",
