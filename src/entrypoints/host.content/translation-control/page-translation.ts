@@ -1,7 +1,7 @@
 import type { Config } from "@/types/config/config"
 import { getDetectedCodeFromStorage } from "@/utils/config/languages"
 import { getLocalConfig } from "@/utils/config/storage"
-import { CONTENT_WRAPPER_CLASS } from "@/utils/constants/dom-labels"
+import { CONTENT_WRAPPER_CLASS, WALKED_ATTRIBUTE } from "@/utils/constants/dom-labels"
 import { hasNoWalkAncestor, isDontWalkIntoButTranslateAsChildElement, isHTMLElement } from "@/utils/host/dom/filter"
 import { walkAndLabelElement } from "@/utils/host/dom/traversal"
 import { removeAllTranslatedWrapperNodes, translateWalkedElement } from "@/utils/host/translate/node-manipulation"
@@ -46,6 +46,8 @@ export class PageTranslationManager implements IPageTranslationManager {
   private static readonly MOVE_THRESHOLD = 30 * 30
   private static readonly NAVIGATION_CONTENT_SETTLE_DELAY = 120
   private static readonly MUTATION_SCAN_BATCH_DELAY = 16
+  private static readonly PREFETCH_TRANSLATION_DELAY = 180
+  private static readonly MAX_IDLE_PREFETCH_TRANSLATIONS = 3
   private static readonly DEFAULT_INTERSECTION_OPTIONS: SimpleIntersectionOptions = {
     root: null,
     rootMargin: "600px",
@@ -68,6 +70,14 @@ export class PageTranslationManager implements IPageTranslationManager {
   private observedMutationRoots = new WeakSet<HTMLElement>()
   private queuedMutationScanContainers = new Set<HTMLElement>()
   private mutationScanTimer: number | null = null
+  private pendingPrefetchTargets = new Set<HTMLElement>()
+  private prefetchTimer: number | null = null
+  private readonly handleScrollActivity = () => {
+    if (!this.isPageTranslating) {
+      return
+    }
+    this.schedulePrefetchFlush()
+  }
 
   constructor(intersectionOptions: SimpleIntersectionOptions = {}) {
     if (intersectionOptions.threshold !== undefined) {
@@ -434,6 +444,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     const signal = controller.signal
     this.walkId = walkId
     this.translationController = controller
+    window.addEventListener("scroll", this.handleScrollActivity, { passive: true })
     this.intersectionObserver = new IntersectionObserver(async (entries, observer) => {
       const currentConfig = this.sessionConfig
       if (!currentConfig) {
@@ -450,16 +461,21 @@ export class PageTranslationManager implements IPageTranslationManager {
         if (entry.isIntersecting) {
           if (isHTMLElement(entry.target)) {
             if (!entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
-              const requestPriority = this.isActuallyVisibleInViewport(entry.target) ? "visible" as const : "prefetch" as const
-              observer.unobserve(entry.target)
-
               if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId || signal.aborted)
                 return
 
-              void translateWalkedElement(entry.target, walkId, currentConfig, false, {
-                signal,
-                requestPriority,
-              })
+              if (this.isActuallyVisibleInViewport(entry.target)) {
+                observer.unobserve(entry.target)
+                this.pendingPrefetchTargets.delete(entry.target)
+                void translateWalkedElement(entry.target, walkId, currentConfig, false, {
+                  signal,
+                  requestPriority: "visible",
+                })
+              }
+              else {
+                this.pendingPrefetchTargets.add(entry.target)
+                this.schedulePrefetchFlush()
+              }
             }
           }
         }
@@ -521,10 +537,16 @@ export class PageTranslationManager implements IPageTranslationManager {
     this.dontWalkIntoElementsCache = new WeakSet()
     this.observedMutationRoots = new WeakSet()
     this.queuedMutationScanContainers.clear()
+    this.pendingPrefetchTargets.clear()
 
     if (this.mutationScanTimer !== null) {
       window.clearTimeout(this.mutationScanTimer)
       this.mutationScanTimer = null
+    }
+
+    if (this.prefetchTimer !== null) {
+      window.clearTimeout(this.prefetchTimer)
+      this.prefetchTimer = null
     }
 
     if (this.intersectionObserver) {
@@ -532,6 +554,7 @@ export class PageTranslationManager implements IPageTranslationManager {
       this.intersectionObserver = null
     }
 
+    window.removeEventListener("scroll", this.handleScrollActivity)
     this.mutationObservers.forEach(observer => observer.disconnect())
     this.mutationObservers = []
   }
@@ -561,5 +584,88 @@ export class PageTranslationManager implements IPageTranslationManager {
       && rect.right > 0
       && rect.top < viewportHeight
       && rect.left < viewportWidth
+  }
+
+  private schedulePrefetchFlush(): void {
+    if (this.prefetchTimer !== null) {
+      window.clearTimeout(this.prefetchTimer)
+    }
+
+    this.prefetchTimer = window.setTimeout(() => {
+      this.prefetchTimer = null
+      this.flushPendingPrefetchTargets()
+    }, PageTranslationManager.PREFETCH_TRANSLATION_DELAY)
+  }
+
+  private flushPendingPrefetchTargets(): void {
+    if (!this.isPageTranslating || !this.walkId || !this.intersectionObserver || !this.translationController || this.translationController.signal.aborted) {
+      this.pendingPrefetchTargets.clear()
+      return
+    }
+
+    const config = this.sessionConfig
+    if (!config) {
+      return
+    }
+
+    const walkId = this.walkId
+    const signal = this.translationController.signal
+    const observer = this.intersectionObserver
+    const candidates = Array.from(this.pendingPrefetchTargets)
+      .filter((target) => {
+        if (!target.isConnected) {
+          this.pendingPrefetchTargets.delete(target)
+          return false
+        }
+        if (target.getAttribute(WALKED_ATTRIBUTE) !== walkId) {
+          this.pendingPrefetchTargets.delete(target)
+          return false
+        }
+        if (target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
+          this.pendingPrefetchTargets.delete(target)
+          return false
+        }
+        return true
+      })
+      .map(target => ({ target, distance: this.getViewportDistance(target) }))
+      .filter(item => item.distance <= this.getIdlePrefetchDistanceLimit())
+
+    const visibleCandidates = candidates
+      .filter(item => item.distance === 0)
+      .sort((a, b) => a.target.getBoundingClientRect().top - b.target.getBoundingClientRect().top)
+
+    const nearbyOffscreenCandidates = candidates
+      .filter(item => item.distance > 0)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, PageTranslationManager.MAX_IDLE_PREFETCH_TRANSLATIONS)
+
+    const targetsToTranslate = [...visibleCandidates, ...nearbyOffscreenCandidates]
+
+    for (const { target } of targetsToTranslate) {
+      this.pendingPrefetchTargets.delete(target)
+      observer.unobserve(target)
+      void translateWalkedElement(target, walkId, config, false, {
+        signal,
+        requestPriority: "prefetch",
+      })
+    }
+  }
+
+  private getViewportDistance(element: HTMLElement): number {
+    const rect = element.getBoundingClientRect()
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+
+    if (rect.bottom < 0) {
+      return -rect.bottom
+    }
+    if (rect.top > viewportHeight) {
+      return rect.top - viewportHeight
+    }
+    return 0
+  }
+
+  private getIdlePrefetchDistanceLimit(): number {
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+    return viewportHeight
   }
 }
