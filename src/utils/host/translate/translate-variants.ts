@@ -12,6 +12,46 @@ import { shouldSkipParagraphTranslationByRules } from "./page-rules"
 import { getPageTranslationRuntimeConfig } from "./runtime-config"
 import { buildLocalContextFingerprint, buildPageSharedTextCacheKey, MIN_LENGTH_FOR_SKIP_LLM_DETECTION, translateTextCore, translateTextCoreWithResult } from "./translate-text"
 
+const PAGE_TRANSLATION_VISIBLE_REQUEST_GAP_MS = 24
+const PAGE_TRANSLATION_PREFETCH_BASE_DELAY_MS = 400
+const PAGE_TRANSLATION_PREFETCH_REQUEST_GAP_MS = 120
+const PAGE_TRANSLATION_SCHEDULER_RESET_MS = 1500
+
+let nextVisibleTranslationScheduleAt = 0
+let nextPrefetchTranslationScheduleAt = 0
+let lastPageTranslationScheduleReservationAt = 0
+
+function reservePageTranslationScheduleAt(priority?: "visible" | "prefetch"): number | undefined {
+  if (!priority) {
+    return undefined
+  }
+
+  const now = Date.now()
+  if (now - lastPageTranslationScheduleReservationAt > PAGE_TRANSLATION_SCHEDULER_RESET_MS) {
+    nextVisibleTranslationScheduleAt = now
+    nextPrefetchTranslationScheduleAt = now + PAGE_TRANSLATION_PREFETCH_BASE_DELAY_MS
+  }
+  lastPageTranslationScheduleReservationAt = now
+
+  if (priority === "visible") {
+    const scheduleAt = Math.max(now, nextVisibleTranslationScheduleAt)
+    nextVisibleTranslationScheduleAt = scheduleAt + PAGE_TRANSLATION_VISIBLE_REQUEST_GAP_MS
+    nextPrefetchTranslationScheduleAt = Math.max(
+      nextPrefetchTranslationScheduleAt,
+      nextVisibleTranslationScheduleAt + PAGE_TRANSLATION_PREFETCH_BASE_DELAY_MS,
+    )
+    return scheduleAt
+  }
+
+  const scheduleAt = Math.max(
+    now + PAGE_TRANSLATION_PREFETCH_BASE_DELAY_MS,
+    nextPrefetchTranslationScheduleAt,
+    nextVisibleTranslationScheduleAt + PAGE_TRANSLATION_PREFETCH_BASE_DELAY_MS,
+  )
+  nextPrefetchTranslationScheduleAt = scheduleAt + PAGE_TRANSLATION_PREFETCH_REQUEST_GAP_MS
+  return scheduleAt
+}
+
 async function getConfigOrThrow(): Promise<Config> {
   const runtimeConfig = getPageTranslationRuntimeConfig()
   if (runtimeConfig) {
@@ -39,6 +79,7 @@ export async function translateTextForPageWithResult(
   options?: {
     nodes?: ChildNode[]
     signal?: AbortSignal
+    requestPriority?: "visible" | "prefetch"
     onUpdate?: (result: TranslationResult, meta: { isFinal: boolean, source: "default" | "fast" }) => void | Promise<void>
   },
 ): Promise<TranslationResult> {
@@ -59,6 +100,8 @@ export async function translateTextForPageWithResult(
       return { translation: "" }
     }
   }
+
+  const scheduleAt = reservePageTranslationScheduleAt(options?.requestPriority)
 
   const createRequest = async (targetProviderConfig = providerConfig): Promise<TranslationResult> => {
     const preparedTranslation = prepareGlossaryTranslation(text, targetProviderConfig, config.glossary.entries)
@@ -87,6 +130,7 @@ export async function translateTextForPageWithResult(
       exactCacheContextFingerprint,
       pageDetectedCode,
       sharedCacheKey,
+      scheduleAt,
     })
   }
 

@@ -830,6 +830,7 @@ export interface TranslateTextOptions {
   exactCacheContextFingerprint?: string
   pageDetectedCode?: LangCodeISO6393
   sharedCacheKey?: string
+  scheduleAt?: number
 }
 
 /**
@@ -849,6 +850,7 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
     exactCacheContextFingerprint,
     pageDetectedCode,
     sharedCacheKey,
+    scheduleAt,
   } = options
 
   const preparedTranslation = prepareGlossaryTranslation(text, providerConfig, glossaryEntries)
@@ -907,7 +909,7 @@ export async function translateTextCoreWithResult(options: TranslateTextOptions)
     glossaryPrompt: preparedTranslation.glossaryPrompt,
     langConfig,
     providerConfig,
-    scheduleAt: Date.now(),
+    scheduleAt: scheduleAt ?? Date.now(),
     hash: Sha256Hex(...hashComponents),
     stableCacheKey,
     articleTitle,

@@ -263,6 +263,10 @@ export class PageTranslationManager implements IPageTranslationManager {
       return
     }
 
+    if (this.isInternalTranslationElement(container)) {
+      return
+    }
+
     this.queuedMutationScanContainers.add(container)
     if (this.mutationScanTimer !== null) {
       return
@@ -312,8 +316,12 @@ export class PageTranslationManager implements IPageTranslationManager {
     const mutationObserver = new MutationObserver((records) => {
       for (const rec of records) {
         if (rec.type === "childList") {
+          if (this.isInternalTranslationNode(rec.target)) {
+            continue
+          }
+
           rec.addedNodes.forEach((node) => {
-            if (isHTMLElement(node)) {
+            if (isHTMLElement(node) && !this.isInternalTranslationElement(node)) {
               this.queueMutationContainerScan(node)
             }
           })
@@ -323,7 +331,7 @@ export class PageTranslationManager implements IPageTranslationManager {
           && (rec.attributeName === "style" || rec.attributeName === "class")
         ) {
           const el = rec.target
-          if (isHTMLElement(el) && this.didChangeToWalkable(el)) {
+          if (isHTMLElement(el) && !this.isInternalTranslationElement(el) && this.didChangeToWalkable(el)) {
             this.queueMutationContainerScan(el)
           }
         }
@@ -442,13 +450,18 @@ export class PageTranslationManager implements IPageTranslationManager {
         if (entry.isIntersecting) {
           if (isHTMLElement(entry.target)) {
             if (!entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
+              const requestPriority = this.isActuallyVisibleInViewport(entry.target) ? "visible" as const : "prefetch" as const
+              observer.unobserve(entry.target)
+
               if (!this.isPageTranslating || version !== this.sessionVersion || this.walkId !== walkId || signal.aborted)
                 return
 
-              void translateWalkedElement(entry.target, walkId, currentConfig, false, { signal })
+              void translateWalkedElement(entry.target, walkId, currentConfig, false, {
+                signal,
+                requestPriority,
+              })
             }
           }
-          observer.unobserve(entry.target)
         }
       }
     }, this.intersectionOptions)
@@ -521,5 +534,32 @@ export class PageTranslationManager implements IPageTranslationManager {
 
     this.mutationObservers.forEach(observer => observer.disconnect())
     this.mutationObservers = []
+  }
+
+  private isInternalTranslationNode(node: Node | null): boolean {
+    if (!node) {
+      return false
+    }
+
+    if (isHTMLElement(node)) {
+      return this.isInternalTranslationElement(node)
+    }
+
+    return !!node.parentElement?.closest(`.${CONTENT_WRAPPER_CLASS}`)
+  }
+
+  private isInternalTranslationElement(element: HTMLElement): boolean {
+    return !!element.closest(`.${CONTENT_WRAPPER_CLASS}`)
+  }
+
+  private isActuallyVisibleInViewport(element: HTMLElement): boolean {
+    const rect = element.getBoundingClientRect()
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+
+    return rect.bottom > 0
+      && rect.right > 0
+      && rect.top < viewportHeight
+      && rect.left < viewportWidth
   }
 }

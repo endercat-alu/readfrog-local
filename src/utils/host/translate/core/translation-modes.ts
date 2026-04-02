@@ -40,6 +40,7 @@ export async function translateNodes(
   forceBlockTranslation: boolean = false,
   options?: {
     signal?: AbortSignal
+    requestPriority?: "visible" | "prefetch"
   },
 ): Promise<void> {
   if (options?.signal?.aborted)
@@ -64,6 +65,7 @@ export async function translateNodesBilingualMode(
   forceBlockTranslation: boolean = false,
   options?: {
     signal?: AbortSignal
+    requestPriority?: "visible" | "prefetch"
   },
 ): Promise<void> {
   if (options?.signal?.aborted)
@@ -135,6 +137,7 @@ export async function translateNodesBilingualMode(
 
     await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, {
       signal: options?.signal,
+      requestPriority: options?.requestPriority,
       onResult: async (translatedResult, meta) => {
         const translatedText = translatedResult.translation === textContent ? "" : translatedResult.translation
         applyCacheHitMetadata(translatedWrapperNode, translatedResult.cacheHit)
@@ -174,6 +177,7 @@ export async function translateNodeTranslationOnlyMode(
   toggle: boolean = false,
   options?: {
     signal?: AbortSignal
+    requestPriority?: "visible" | "prefetch"
   },
 ): Promise<void> {
   if (options?.signal?.aborted)
@@ -323,6 +327,7 @@ export async function translateNodeTranslationOnlyMode(
 
     await getTranslatedTextAndRemoveSpinner(nodes, textContent, spinner, translatedWrapperNode, {
       signal: options?.signal,
+      requestPriority: options?.requestPriority,
       onResult: async (translatedResult, meta) => {
         const translatedText = translatedResult.translation
 

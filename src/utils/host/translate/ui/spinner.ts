@@ -81,6 +81,7 @@ export async function getTranslatedTextAndRemoveSpinner(
   translatedWrapperNode: HTMLElement,
   options?: {
     signal?: AbortSignal
+    requestPriority?: "visible" | "prefetch"
     onResult?: (result: TranslationResult, meta: { isFinal: boolean, source: "default" | "fast" }) => void | Promise<void>
   },
 ): Promise<TranslationResult | undefined> {
@@ -97,6 +98,7 @@ export async function getTranslatedTextAndRemoveSpinner(
     translatedResult = await translateTextForPageWithResult(textContent, {
       nodes,
       signal: options?.signal,
+      requestPriority: options?.requestPriority,
       onUpdate: async (result, meta) => {
         removeSpinner()
         if (meta.isFinal) {

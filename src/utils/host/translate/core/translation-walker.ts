@@ -16,6 +16,7 @@ export async function translateWalkedElement(
   toggle: boolean = false,
   options?: {
     signal?: AbortSignal
+    requestPriority?: "visible" | "prefetch"
   },
 ): Promise<void> {
   if (options?.signal?.aborted)
