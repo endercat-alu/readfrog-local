@@ -2,12 +2,17 @@ import path from "node:path"
 import process from "node:process"
 import { defineConfig } from "wxt"
 
+const isFirefoxProfilerBuild = process.env.WXT_FIREFOX_PROFILER_BUILD === "true"
+
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: "src",
   imports: false,
   modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"],
   manifestVersion: 3,
+  ...(isFirefoxProfilerBuild && {
+    outDirTemplate: "{{browser}}-mv{{manifestVersion}}-profiler{{modeSuffix}}",
+  }),
   // WXT top level alias - will be automatically synced to tsconfig.json paths and Vite alias
   alias: process.env.WXT_USE_LOCAL_PACKAGES === "true"
     ? {
@@ -61,6 +66,9 @@ export default defineConfig({
     }),
   }),
   zip: {
+    ...(isFirefoxProfilerBuild && {
+      artifactTemplate: "{{name}}-{{version}}-{{browser}}-profiler.zip",
+    }),
     includeSources: [".env.production"],
     excludeSources: ["docs/**/*", "assets/**/*", "repos/**/*"],
   },
@@ -70,6 +78,18 @@ export default defineConfig({
     },
   },
   vite: configEnv => ({
+    build: configEnv.browser === "firefox" && isFirefoxProfilerBuild
+      ? {
+          minify: false,
+          cssMinify: false,
+          rollupOptions: {
+            output: {
+              minifyInternalExports: false,
+            },
+          },
+          sourcemap: true,
+        }
+      : undefined,
     plugins: configEnv.mode === "production"
       ? [
           {
