@@ -49,6 +49,13 @@ export default defineContentScript({
   matches: ["*://*/*", "file:///*"],
   cssInjectionMode: "ui",
   allFrames: true,
+  // Firefox uses runtime registration here so selection helpers are only
+  // registered when the related features are enabled for the current profile.
+  registration: {
+    chrome: "manifest",
+    edge: "manifest",
+    firefox: "runtime",
+  },
   async main(ctx) {
     // Prevent double injection (manifest-based + programmatic injection)
     if (window.__READ_FROG_SELECTION_INJECTED__)

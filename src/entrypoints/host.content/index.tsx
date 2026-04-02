@@ -52,6 +52,13 @@ export default defineContentScript({
   matches: ["*://*/*", "file:///*"],
   cssInjectionMode: "manifest",
   allFrames: true,
+  // Firefox uses runtime registration here to avoid shipping an always-on
+  // manifest content script across every granted page and iframe.
+  registration: {
+    chrome: "manifest",
+    edge: "manifest",
+    firefox: "runtime",
+  },
   async main(ctx) {
     // Prevent double injection (manifest-based + programmatic injection)
     if (window.__READ_FROG_HOST_INJECTED__)

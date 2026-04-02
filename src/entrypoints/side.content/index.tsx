@@ -32,6 +32,13 @@ export let shadowWrapper: HTMLElement | null = null
 export default defineContentScript({
   matches: ["*://*/*", "file:///*"],
   cssInjectionMode: "ui",
+  // Firefox uses runtime registration here so the floating entry UI does not
+  // stay mounted as a manifest content script when the feature is disabled.
+  registration: {
+    chrome: "manifest",
+    edge: "manifest",
+    firefox: "runtime",
+  },
   async main(ctx) {
     const config = await getLocalConfig() ?? DEFAULT_CONFIG
 

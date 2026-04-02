@@ -10,6 +10,7 @@ import { setUpConfigBackup } from "./config-backup"
 import { initializeContextMenu, registerContextMenuListeners } from "./context-menu"
 import { cleanupAllAiSegmentationCache, cleanupAllSummaryCache, cleanupAllTranslationCache, setUpDatabaseCleanup } from "./db-cleanup"
 import { setupEdgeTTSMessageHandlers } from "./edge-tts"
+import { setupFirefoxRuntimeContentScriptSync } from "./firefox-content-scripts"
 import { setupIframeInjection } from "./iframe-injection"
 import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
 import { initMockData } from "./mock-data"
@@ -87,6 +88,7 @@ export default defineBackground({
     void setUpSubtitlesTranslationQueue()
     void setUpDatabaseCleanup()
     setUpConfigBackup()
+    setupFirefoxRuntimeContentScriptSync()
 
     proxyFetch()
     setupKagiTranslateMessageHandlers()

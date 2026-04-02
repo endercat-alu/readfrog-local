@@ -59,7 +59,9 @@
   }
 
   /* ---------- 4. Fallback polling (optional, to ensure 100% coverage) ---------- */
-  if (!["chrome", "edge"].includes(import.meta.env.BROWSER)) {
+  // Latest Firefox already ships the Navigation API, so only keep the polling
+  // fallback for browsers that still do not expose `window.navigation`.
+  if (!("navigation" in window)) {
     setInterval(() => {
       const now = location.href
       if (now !== prev) {

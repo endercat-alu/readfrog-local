@@ -1,6 +1,12 @@
 import { browser } from "#imports"
 
 export function setupIframeInjection() {
+  // Firefox already handles these frames through runtime registration, so keep
+  // the Chrome-only iframe reinjection path out of its hot path.
+  if (!["chrome", "edge"].includes(import.meta.env.BROWSER)) {
+    return
+  }
+
   // Listen for iframe loads and inject content scripts programmatically
   // This catches iframes that Chrome's manifest-based all_frames: true misses
   // (e.g., dynamically created iframes, sandboxed iframes like edX)
