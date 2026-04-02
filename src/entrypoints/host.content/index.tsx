@@ -19,7 +19,7 @@ import { logger } from "@/utils/logger"
 import { onMessage, sendMessage } from "@/utils/message"
 import { protectSelectAllShadowRoot } from "@/utils/select-all"
 import { insertShadowRootUIWrapperInto } from "@/utils/shadow-root"
-import { isSiteEnabled } from "@/utils/site-control"
+import { clearEffectiveSiteControlUrl, getEffectiveSiteControlUrl, isSiteEnabled } from "@/utils/site-control"
 import { addStyleToShadow, injectBaseStylesToShadow } from "@/utils/styles"
 import { getLocalThemeMode } from "@/utils/theme"
 import App from "./app"
@@ -65,9 +65,17 @@ export default defineContentScript({
       return
     window.__READ_FROG_HOST_INJECTED__ = true
 
+    ctx.onInvalidated(() => {
+      window.__READ_FROG_HOST_INJECTED__ = false
+      clearEffectiveSiteControlUrl()
+    })
+
     // Check global site control
     const initialConfig = await getLocalConfig()
-    if (!isSiteEnabled(window.location.href, initialConfig)) {
+    const siteControlUrl = getEffectiveSiteControlUrl(window.location.href)
+    if (!isSiteEnabled(siteControlUrl, initialConfig)) {
+      window.__READ_FROG_HOST_INJECTED__ = false
+      clearEffectiveSiteControlUrl()
       return
     }
 

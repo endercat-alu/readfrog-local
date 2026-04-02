@@ -4,7 +4,7 @@ import { storage } from "#imports"
 export const storageAdapter = {
   async get<T>(key: string, fallback: T, schema: ZodSchema<T>): Promise<T> {
     const value = await storage.getItem<T>(`local:${key}`)
-    if (value) {
+    if (value !== null && value !== undefined) {
       const parsedValue = schema.safeParse(value)
       if (parsedValue.success) {
         return parsedValue.data
@@ -26,7 +26,7 @@ export const storageAdapter = {
   },
   watch<T>(key: string, callback: (newValue: T) => void) {
     const unwatch = storage.watch<T>(`local:${key}`, (newValue) => {
-      if (newValue !== null)
+      if (newValue !== null && newValue !== undefined)
         callback(newValue)
     })
     return unwatch

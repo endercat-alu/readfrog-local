@@ -65,4 +65,13 @@ describe("isCustomForceBlockTranslation", () => {
 
     expect(isCustomForceBlockTranslation(taskLists)).toBe(false)
   })
+
+  it("matches shreddit post text body on reddit", () => {
+    setHost("www.reddit.com")
+
+    const postBody = document.createElement("shreddit-post-text-body")
+    document.body.appendChild(postBody)
+
+    expect(isCustomForceBlockTranslation(postBody)).toBe(true)
+  })
 })

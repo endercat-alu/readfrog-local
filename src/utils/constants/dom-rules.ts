@@ -157,6 +157,7 @@ export const CUSTOM_DONT_WALK_INTO_ELEMENT_SELECTOR_MAP: Record<string, string[]
     "header *",
     "#repository-container-header *",
     "[class*=\"OverviewContent-module__Box_1--\"] *",
+    "table.diff-table",
   ],
 }
 
@@ -166,6 +167,9 @@ export const CUSTOM_FORCE_BLOCK_TRANSLATION_SELECTOR_MAP: Record<string, string[
   ],
   "engoo.com": [
     "#windowexercise-2 > div > div > div.css-ep7xq6 > div > div > div.css-19m2fbm *",
+  ],
+  "www.reddit.com": [
+    "shreddit-post-text-body",
   ],
   "www.youtube.com": [
     "yt-attributed-string > span",

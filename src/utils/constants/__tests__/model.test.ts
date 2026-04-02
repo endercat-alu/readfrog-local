@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { getProviderOptions } from "../../providers/options"
+import { getProviderOptions, getProviderOptionsWithOverride } from "../../providers/options"
 
 describe("getProviderOptions", () => {
   describe("model pattern matching", () => {
@@ -37,15 +37,18 @@ describe("getProviderOptions", () => {
       expect(o3Options.openai?.reasoningEffort).toBe("minimal")
     })
 
-    it("should return medium for gpt-5.x-chat-latest and gpt-5.2-pro", () => {
+    it("should return medium for gpt-5.4-pro and gpt-5.2-pro", () => {
+      const gpt54ProOptions = getProviderOptions("gpt-5.4-pro", "openai")
+      expect(gpt54ProOptions.openai?.reasoningEffort).toBe("medium")
+
       const gpt52ProOptions = getProviderOptions("gpt-5.2-pro", "openai")
       expect(gpt52ProOptions.openai?.reasoningEffort).toBe("medium")
+    })
 
-      const gpt52ChatLatestOptions = getProviderOptions("gpt-5.2-chat-latest", "openai")
-      expect(gpt52ChatLatestOptions.openai?.reasoningEffort).toBe("medium")
-
-      const gpt51ChatLatestOptions = getProviderOptions("gpt-5.1-chat-latest", "openai")
-      expect(gpt51ChatLatestOptions.openai?.reasoningEffort).toBe("medium")
+    it("should not force reasoning for gpt-5 chat-latest variants", () => {
+      expect(getProviderOptions("gpt-5.3-chat-latest", "openai")).toEqual({})
+      expect(getProviderOptions("gpt-5.2-chat-latest", "openai")).toEqual({})
+      expect(getProviderOptions("gpt-5.1-chat-latest", "openai")).toEqual({})
     })
 
     it("should return high for gpt-5-pro", () => {
@@ -62,6 +65,9 @@ describe("getProviderOptions", () => {
 
       const gpt51CodexOptions = getProviderOptions("gpt-5.1-codex", "openai")
       expect(gpt51CodexOptions.openai?.reasoningEffort).toBe("none")
+
+      const gpt54Options = getProviderOptions("gpt-5.4", "openai")
+      expect(gpt54Options.openai?.reasoningEffort).toBe("none")
     })
 
     it("should return minimal for GPT-5 models before 5.1 (none not supported)", () => {
@@ -99,6 +105,60 @@ describe("getProviderOptions", () => {
 
       const end = getProviderOptions("model-GLM", "openai-compatible")
       expect(end.openaiCompatible).toBeUndefined()
+    })
+  })
+
+  describe("provider option normalization", () => {
+    it("should normalize openai-compatible snake_case aliases", () => {
+      const options = getProviderOptionsWithOverride("glm-4-flash", "openai-compatible", {
+        reasoning_effort: "minimal",
+        verbosity: "low",
+        foo: "bar",
+      })
+
+      expect(options).toEqual({
+        "openai-compatible": {
+          reasoningEffort: "minimal",
+          textVerbosity: "low",
+          foo: "bar",
+        },
+      })
+    })
+
+    it("should prefer canonical keys when both forms are present", () => {
+      const options = getProviderOptionsWithOverride("glm-4-flash", "volcengine", {
+        reasoning_effort: "high",
+        reasoningEffort: "minimal",
+        verbosity: "high",
+        textVerbosity: "low",
+      })
+
+      expect(options).toEqual({
+        volcengine: {
+          reasoningEffort: "minimal",
+          textVerbosity: "low",
+        },
+      })
+    })
+  })
+
+  describe("qwen and kimi pattern matching", () => {
+    it("should disable thinking for broad qwen model variants", () => {
+      const qwenOptions = getProviderOptions("Qwen/Qwen3-Next-80B-A3B-Instruct", "siliconflow")
+      expect(qwenOptions.siliconflow?.enableThinking).toBe(false)
+    })
+
+    it("should keep qwen thinking variants untouched", () => {
+      const thinkingOptions = getProviderOptions("qwen-3-235b-a22b-thinking-2507", "cerebras")
+      expect(thinkingOptions).toEqual({})
+    })
+
+    it("should disable thinking/history for kimi k2 variants", () => {
+      const kimiOptions = getProviderOptions("accounts/fireworks/models/kimi-k2-instruct", "fireworks")
+      expect(kimiOptions.fireworks).toMatchObject({
+        thinking: { type: "disabled" },
+        reasoningHistory: "disabled",
+      })
     })
   })
 })

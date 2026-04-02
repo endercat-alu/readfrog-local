@@ -1,6 +1,6 @@
 import type { Config } from "@/types/config/config"
 import { describe, expect, it } from "vitest"
-import { isSiteEnabled } from "../site-control"
+import { isSiteEnabled, resolveEffectiveSiteControlUrl } from "../site-control"
 
 function createConfig(siteControl: Config["siteControl"]): Config {
   return { siteControl } as Config
@@ -76,5 +76,15 @@ describe("isSiteEnabled", () => {
       })
       expect(isSiteEnabled("https://example.com", config)).toBe(true)
     })
+  })
+})
+
+describe("resolveEffectiveSiteControlUrl", () => {
+  it("should prefer injected site control url", () => {
+    expect(resolveEffectiveSiteControlUrl("about:blank", "https://example.com")).toBe("https://example.com")
+  })
+
+  it("should fall back to current url", () => {
+    expect(resolveEffectiveSiteControlUrl("https://example.com")).toBe("https://example.com")
   })
 })
